@@ -8,19 +8,20 @@ const About = () => {
           <div>
             <h3 className="text-4xl font-bold text-[#D5F0E5]/85 mb-8">About Me</h3>
             <div className="space-y-6 text-lg text-[#D5F0E5]/65 leading-relaxed">
-              <p>
-                My journey blends academic learning with real-world innovation. From creating CodeMorph—
-                an agentic AI system for legacy code migration—to building a disaster resilience platform 
-                powered by IBM Cloud, I thrive on solving meaningful problems with technology.
+              <p>I am of the belief that technology is a powerful enabler 
+                for solving real-world problems and driving business success. From creating 
+                CodeMorph—an agentic AI system that streamlines legacy code migration—to 
+                developing a disaster resilience platform, I aim to build innovative 
+                solutions that have a tangible impact.
               </p>
-              <p>
-                I enjoy working across the stack, combining Python, JavaScript, and emerging AI tools. 
-                I believe technology is most powerful when it’s accessible, engaging, and impactful.
+              <p>I enjoy working using emerging AI tools to create robust and scalable applications. 
+                My focus is on developing solutions that are not only technologically advanced but 
+                also intuitive, accessible, and aligned with business goals.
               </p>
-              <p>
-                Beyond coding, I see myself as a problem-solver who learns by doing. I’m always looking 
-                for ways to push boundaries and create solutions that matter. I also hold a B1 proficiency 
-                in German, expanding my ability to collaborate and engage in multicultural environments.
+              <p>Beyond coding, I'm a hands-on problem-solver dedicated to continuous learning. 
+                I am always seeking new challenges to push the boundaries of what's possible and create 
+                solutions that matter. I also hold a B1 proficiency in German, which enhances my ability 
+                to collaborate effectively in diverse, multicultural environments.
               </p>
 
             </div>

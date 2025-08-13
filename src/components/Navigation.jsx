@@ -8,7 +8,7 @@ const Navigation = () => {
     <nav className="font-[Open_Sans] fixed top-6 left-1/2 -translate-x-1/2 max-w-7xl w-[95%] bg-[#183D3D]/40 backdrop-blur-lg rounded-full shadow-lg border-b border-gray-800 z-50">
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex justify-between items-center">
-          <div className="text-2xl font-bold text-[#D5F0E5]">
+          <div className="text-4xl font-bold text-[#D5F0E5]">
             Neeti Kurulkar
           </div>
 

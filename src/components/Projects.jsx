@@ -7,7 +7,7 @@ const Projects = () => {
       title: "CodeMorph",
       description: "Agentic AI system using four Autogen agents—Strategist, Migrator, Tester, and Documenter—to automate legacy code migration. Ingests GitHub repositories, generates migration plans, modernizes codebases, and validates results through a Streamlit-based interface. Won 1st Place at The Better Hack.",
       category: "AI & Automation",
-      image: "/codemorph.png",
+      image: "/codemorph.jpg",
       tags: ["Python", "Autogen", "GitIngest", "Streamlit"],
       github: "https://github.com/adv-11/TheBetterHack-2025"
     },
@@ -15,7 +15,7 @@ const Projects = () => {
       title: "Disaster Resilience Platform",
       description: "Cross-platform disaster management system with a Streamlit dashboard and Android app for SOS alerts, geospatial mapping, and donation tracking. Powered by IBM Cloud services for risk analysis, live updates, and AI-driven insights. Ranked Top 10 at IBM Hackathon Maharashtra.",
       category: "Civic Tech",
-      image: "/disaster-resilience.png",
+      image: "/disaster-resilience.jpg",
       tags: ["Python", "Java", "Streamlit", "IBM Cloud", "Watsonx.ai", "Cloudant", "NLU"],
       github: "https://github.com/adv-11/Disaster_Resilience_Platform",
       live: "https://disaster-platform-ibm.streamlit.app/"
@@ -24,7 +24,7 @@ const Projects = () => {
       title: "Sansthaein Aur Samvidhan",
       description: "Gamified platform simplifying the Indian Constitution through interactive games on governance. Built with Blender, Unreal Engine, PostgreSQL, and an AI speech-enabled guide. Finalists at Smart India Hackathon 2024, ranked 6th out of 500+ entries by the Ministry of Law & Justice.",
       category: "EdTech & Gaming",
-      image: "/game-pr.png",
+      image: "/samvidhan-rangers.jpg",
       tags: ["C++", "Python", "React.js", "Blender", "Unreal Engine", "ConvAI", "PostgreSQL"],
       live: "https://www.youtube.com/watch?v=txhCER6uMyA",
     },

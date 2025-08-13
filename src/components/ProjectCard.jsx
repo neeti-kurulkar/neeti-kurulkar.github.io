@@ -1,22 +1,20 @@
-// src/components/ProjectCard.jsx
-
 import React from 'react';
 
 const ProjectCard = ({ title, description, category, image, tags, github, live }) => {
-  // Helper function to check if the string is likely an image URL
   const isImage = (str) => {
     return typeof str === 'string' && (str.startsWith('http') || str.startsWith('/'));
   };
 
   return (
     <div className="font-[Open_Sans] group cursor-pointer">
-      <div className="bg-[#183D3D] rounded-2xl h-64 mb-6 overflow-hidden">
-        <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+      {/* Updated image container with a flexible aspect ratio */}
+      <div className="bg-[#183D3D] rounded-2xl mb-6 overflow-hidden aspect-video">
+        <div className="w-full h-full bg-[#040D12]/50 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
           {isImage(image) ? (
             <img
               src={image}
               alt={title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain p-4" // Use object-contain and add some padding
             />
           ) : (
             <span className="text-4xl">{image}</span>
@@ -36,7 +34,6 @@ const ProjectCard = ({ title, description, category, image, tags, github, live }
             </span>
           ))}
         </div>
-        {/* New section for links */}
         <div className="flex gap-4 pt-2">
           {live && (
             <a 
