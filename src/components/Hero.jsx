@@ -4,38 +4,37 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { LaptopModel } from './Laptop';
 
-const AnimatedLaptopScene = ({ animationComplete, onAnimationComplete }) => {
+const AnimatedLaptopScene = ({ onAnimationComplete }) => {
   const laptopRef = useRef();
   const { camera } = useThree();
   const [isAnimationDone, setIsAnimationDone] = useState(false);
 
   useFrame(() => {
     if (!isAnimationDone) {
-      // Define final positions and rotations
       const finalCameraPosition = new THREE.Vector3(0, 0, 15);
-      const finalLaptopPosition = new THREE.Vector3(0, -1, 0);
-      const finalLaptopRotation = new THREE.Vector3(0, -Math.PI / 8, 0); // Rotate to 22.5 degrees
+      const finalLaptopRotation = new THREE.Vector3(0, -Math.PI / 8, 0);
 
-      // Smoothly zoom the camera in
       camera.position.lerp(finalCameraPosition, 0.05);
 
-      // Smoothly move the laptop down and rotate it
       if (laptopRef.current) {
-        laptopRef.current.position.lerp(finalLaptopPosition, 0.05);
-        laptopRef.current.rotation.y = THREE.MathUtils.lerp(laptopRef.current.rotation.y, finalLaptopRotation.y, 0.05);
+        laptopRef.current.rotation.y = THREE.MathUtils.lerp(
+          laptopRef.current.rotation.y,
+          finalLaptopRotation.y,
+          0.05
+        );
       }
 
-      // Check if both animations are complete
-      if (camera.position.distanceTo(finalCameraPosition) < 0.1 && 
-          laptopRef.current.position.distanceTo(finalLaptopPosition) < 0.1 &&
-          Math.abs(laptopRef.current.rotation.y - finalLaptopRotation.y) < 0.01) {
+      if (
+        camera.position.distanceTo(finalCameraPosition) < 0.1 &&
+        Math.abs(laptopRef.current.rotation.y - finalLaptopRotation.y) < 0.01
+      ) {
         setIsAnimationDone(true);
         onAnimationComplete(true);
       }
     }
   });
 
-  return <LaptopModel ref={laptopRef} position={[0, -1, 25]} />; // Initial far position for laptop
+  return <LaptopModel ref={laptopRef} position={[0, -1, 0]} rotation-x={Math.PI / 16} />;
 };
 
 const Hero = () => {
@@ -68,10 +67,17 @@ const Hero = () => {
             </div>
           </div>
           <div className="hidden lg:block w-full h-full aspect-square md:aspect-auto">
-            <Canvas camera={{ position: [0, 0, 25], fov: 40 }}>
-              <pointLight position={[10, 10, 10]} intensity={1} />
-              <ambientLight intensity={0.5} />
-              <AnimatedLaptopScene animationComplete={animationComplete} onAnimationComplete={setAnimationComplete} />
+            <Canvas camera={{ position: [0, 0, 25], fov: 40 }} shadows>
+              {/* Main light from the front-right */}
+              <directionalLight castShadow position={[5, 5, 5]} intensity={1.5} />
+              
+              {/* Fill light from the back-left */}
+              <directionalLight castShadow position={[-5, 5, -5]} intensity={0.5} />
+
+              {/* General ambient light */}
+              <ambientLight intensity={1.5} />
+              
+              <AnimatedLaptopScene onAnimationComplete={setAnimationComplete} />
               <OrbitControls enabled={animationComplete} />
             </Canvas>
           </div>
