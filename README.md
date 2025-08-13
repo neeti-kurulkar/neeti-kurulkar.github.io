@@ -99,6 +99,20 @@ npm run build
 This portfolio is deployed using **GitHub Pages**.
 
 To deploy:
+
+For GitHub Pages with Vite:
+```bash
+npm install gh-pages --save-dev
+```
+Update `package.json`:
+```json
+"homepage": "https://yourusername.github.io/portfolio-website",
+"scripts": {
+  "predeploy": "npm run build",
+  "deploy": "gh-pages -d dist"
+}
+```
+Then run:
 ```bash
 npm run deploy
 ```
