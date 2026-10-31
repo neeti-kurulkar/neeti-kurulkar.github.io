@@ -78,8 +78,7 @@ export default function Ghost({ onSay, explaining }) {
     const topY = halfH - 1.9
     const L = sides ? topY - bottomY : 0
     const B = rightX - leftX
-    const gutterW = gutterPx * px2w
-    return { leftX, rightX, bottomY, topY, L, B, total: L + B + L, sides, gutterW }
+    return { leftX, rightX, bottomY, topY, L, B, total: L + B + L, sides }
   }, [viewport.width, viewport.height, size.width])
 
   const at = useMemo(
@@ -98,6 +97,29 @@ export default function Ghost({ onSay, explaining }) {
       return out
     },
     [lane],
+  )
+
+  /* Where the cards actually are, in world units on the z = 0 plane. This
+     is the one span he is not allowed to stop in. */
+  const contentAt = useMemo(
+    () => () => {
+      const els = document.querySelectorAll('section.station')
+      let l = Infinity
+      let r = -Infinity
+      for (const el of els) {
+        const b = el.getBoundingClientRect()
+        if (b.bottom < 0 || b.top > size.height) continue
+        l = Math.min(l, b.left)
+        r = Math.max(r, b.right)
+      }
+      if (!isFinite(l)) return null
+      const pad = 26
+      return {
+        l: ((l - pad) / size.width * 2 - 1) * (viewport.width / 2),
+        r: ((r + pad) / size.width * 2 - 1) * (viewport.width / 2),
+      }
+    },
+    [size.width, size.height, viewport.width],
   )
 
   const tmp = useMemo(() => ({ x: 0, y: 0 }), [])
@@ -138,28 +160,49 @@ export default function Ghost({ onSay, explaining }) {
     }
 
     s.hideTick = (s.hideTick || 0) - d
-    if (s.hideTick <= 0) { s.hideTick = 0.5; s.hideS = hideAt() }
+    if (s.hideTick <= 0) {
+      s.hideTick = 0.4
+      s.hideS = hideAt()
+      s.col = contentAt()
+    }
     const AVOID = lane.total * 0.085
 
-    /* He may travel the whole lane, but he only ever stops at the ends: the
-       two side lanes and the corners of the bottom. The middle of the bottom
-       run sits under the content column, and he gets lost behind it there. */
-    /* The bottom corners reach only as far as the edge of the content
-       column, so a resting ghost is never in front of the text. He is the
-       width of a gutter out from the frame, so half a gutter of bottom is
-       the most that stays clear. */
-    const endOfBottom = lane.sides ? Math.max(0.1, lane.gutterW * 0.42) : lane.B * 0.08
-    const restA = lane.L + endOfBottom            // end of the left-hand zone
-    let restB = lane.L + lane.B - endOfBottom     // start of the right-hand zone
-    /* The readout box sits at the bottom right, exactly where the right-hand
-       zone begins. Without this he parks beside it, gets moved on for being
-       behind it, gets snapped back to the start of the zone, and loops for
-       ever. Begin the zone above the box instead. */
-    if (s.hideS != null) {
-      const ceiling = lane.total - Math.max(0.4, lane.L * 0.35) // leave him room up there
-      restB = Math.min(ceiling, Math.max(restB, s.hideS + AVOID * 1.5))
+    /* The only rule: he must not come to a stop where the cards are. He is
+       free to roam the whole lane otherwise, including straight across the
+       middle.
+
+       The forbidden spans (the content column, and a margin round the
+       readout box) can overlap, so they are merged before use. Without that,
+       pushing him out of one span drops him into the other and he oscillates
+       to a halt on the boundary. */
+    const blocked = []
+    if (s.col) {
+      blocked.push([lane.L + (s.col.l - lane.leftX), lane.L + (s.col.r - lane.leftX)])
     }
-    const parkable = (v) => v <= restA || v >= restB
+    if (s.hideS != null) {
+      blocked.push([s.hideS - AVOID * 0.7, s.hideS + AVOID * 0.7])
+    }
+    blocked.sort((x, y) => x[0] - y[0])
+    const spans = []
+    for (const f of blocked) {
+      const last = spans[spans.length - 1]
+      if (last && f[0] <= last[1]) last[1] = Math.max(last[1], f[1])
+      else spans.push([f[0], f[1]])
+    }
+
+    const noStop = (v) => spans.some(([lo, hi]) => v > lo && v < hi)
+    const nearestStop = (v) => {
+      for (const [lo, hi] of spans) {
+        if (v > lo && v < hi) {
+          const out1 = lo - 0.2
+          const out2 = hi + 0.2
+          if (out1 < 0) return Math.min(lane.total, out2)
+          if (out2 > lane.total) return Math.max(0, out1)
+          return v - lo < hi - v ? out1 : out2
+        }
+      }
+      return v
+    }
 
     const cwx = (pointer.nx * viewport.width) / 2
     const cwy = (pointer.ny * viewport.height) / 2
@@ -194,7 +237,7 @@ export default function Ghost({ onSay, explaining }) {
           s.fleeing = false
           s.stress = 0
           // step back out from behind the box
-          s.targetS = Math.max(0, Math.min(restA, restA * (0.3 + Math.random() * 0.6)))
+          s.targetS = nearestStop(Math.max(0, s.s - AVOID * 3))
         }
       }
     } else if (s.pause > 0) {
@@ -204,41 +247,20 @@ export default function Ghost({ onSay, explaining }) {
       s.roam -= d
       if (s.roam <= 0) {
         s.roam = 1.6 + Math.random() * 2.6
-        // a short hop along the lane, never a dash across the window
-        // somewhere at one of the ends, never behind the box
-        let t = s.s
-        for (let i = 0; i < 12; i++) {
-          // usually head for the far end, so he covers the whole frame
-          const nearLeft = s.s < (restA + restB) / 2
-          const goLeft = Math.random() < (nearLeft ? 0.32 : 0.68)
-          t = goLeft
-            ? Math.random() * restA                        // left lane and its corner
-            : restB + Math.random() * (lane.total - restB) // right lane and its corner
-          if (s.hideS == null || Math.abs(t - s.hideS) > AVOID) break
-        }
-        s.targetS = t
-        if (Math.random() < 0.18) s.pause = 1.0 + Math.random() * 1.6
+        // anywhere on the lane, nudged out of the no-stop span if it lands there
+        const t = nearestStop(Math.random() * lane.total)
+        s.targetS = Math.max(0, Math.min(lane.total, t))
+        if (Math.random() < 0.22) s.pause = 1.0 + Math.random() * 1.8
       }
     }
 
-    // never let him settle in the middle, or behind the box
+    // he may cross the no-stop span, he just may not come to rest in it
     if (!s.fleeing && !explaining) {
-      const stuckBehindBox = s.hideS != null && Math.abs(s.s - s.hideS) < AVOID * 0.8
-      // en route is not the same as stuck: he is only stuck if his
-      // destination is no good either, otherwise this fires while he is
-      // still picking up speed and bounces him back where he came from
-      const stuckInMiddle = !parkable(s.s) && !parkable(s.targetS)
-      if (stuckBehindBox) {
-        s.targetS = Math.max(0, Math.min(lane.total, s.hideS + (s.s < s.hideS ? -AVOID * 1.8 : AVOID * 1.8)))
+      if (noStop(s.targetS)) s.targetS = nearestStop(s.targetS)
+      if (noStop(s.s)) {
         s.pause = 0
-      } else if (stuckInMiddle) {
-        // carry on to whichever end he was already closer to
-        s.targetS = s.s < (restA + restB) / 2 ? restA * 0.7 : restB + (lane.total - restB) * 0.3
-        s.pause = 0
+        if (Math.abs(s.vs) < 0.3) s.targetS = nearestStop(s.s)
       }
-      // and he does not pause mid-crossing
-      if (!parkable(s.targetS)) s.targetS = s.targetS < (restA + restB) / 2 ? restA : restB
-      if (!parkable(s.s)) s.pause = 0
     }
 
     // ease toward the target, but never faster than MAX_SPEED
