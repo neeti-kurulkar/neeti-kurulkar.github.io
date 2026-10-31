@@ -13,10 +13,11 @@ import { pointer, telemetry } from '../lib/pointer'
 
 const HURT = ['ouch!', 'hey!', 'ow.', 'rude.', 'eek!']
 const GLAD = ['boo', 'hi!', '♪', 'hehe']
+const EXPLAIN = ['this one’s good', 'read this bit', 'she likes this one', 'ooh, this one']
 
 const MAX_SPEED = 2.4 // world units per second along the lane
 
-export default function Ghost({ onSay }) {
+export default function Ghost({ onSay, explaining }) {
   const url = `${import.meta.env.BASE_URL}models/ghost.glb`
   const { scene, animations } = useGLTF(url)
   const group = useRef()
@@ -98,6 +99,27 @@ export default function Ghost({ onSay }) {
   )
 
   const tmp = useMemo(() => ({ x: 0, y: 0 }), [])
+  const probe = useMemo(() => ({ x: 0, y: 0 }), [])
+
+  /* The readout box is DOM painted over the canvas, so parking him there
+     really does hide him. We want that on purpose when he sulks, and never
+     by accident while he is just wandering. */
+  const hideAt = useMemo(() => () => {
+    const el = document.querySelector('.readout')
+    if (!el || lane.total <= 0) return null
+    const r = el.getBoundingClientRect()
+    const wx = ((r.left + r.width / 2) / size.width * 2 - 1) * (viewport.width / 2)
+    const wy = -((r.top + r.height / 2) / size.height * 2 - 1) * (viewport.height / 2)
+    let best = 0
+    let bestD = Infinity
+    for (let i = 0; i <= 64; i++) {
+      const ss = (lane.total * i) / 64
+      at(ss, probe)
+      const dd = Math.hypot(probe.x - wx, probe.y - wy)
+      if (dd < bestD) { bestD = dd; best = ss }
+    }
+    return best
+  }, [lane, size.width, size.height, viewport.width, viewport.height, at, probe])
   const grey = useMemo(() => new THREE.Color('#5c6672'), [])
   const screenV = useMemo(() => new THREE.Vector3(), [])
 
@@ -113,14 +135,28 @@ export default function Ghost({ onSay }) {
       s.seeded = true
     }
 
+    s.hideTick = (s.hideTick || 0) - d
+    if (s.hideTick <= 0) { s.hideTick = 0.5; s.hideS = hideAt() }
+    const AVOID = lane.total * 0.085
+
     const cwx = (pointer.nx * viewport.width) / 2
     const cwy = (pointer.ny * viewport.height) / 2
     at(s.s, tmp)
 
-    /* He wanders. He does not follow you. */
-    if (s.stress > 0.6) {
-      // the one exception: edge away from whoever just hit him
-      s.targetS = cwx > tmp.x ? 0 : lane.total
+    /* He wanders. He does not follow you, with two exceptions: he edges away
+       when upset, and he comes over to the sheet when you open a project. */
+    if (explaining) {
+      // park beside the overlay, a little above the bottom of the left lane
+      s.targetS = lane.sides ? lane.L * 0.42 : lane.total * 0.2
+      s.pause = 0
+      if (!s.explained) {
+        s.explained = true
+        s.bubble = 2.4
+        onSay?.({ text: EXPLAIN[(Math.random() * EXPLAIN.length) | 0], hurt: false })
+      }
+    } else if (s.stress > 0.6) {
+      // poked too hard: run off and hide behind the readout box
+      s.targetS = s.hideS != null ? s.hideS : cwx > tmp.x ? 0 : lane.total
       s.pause = 0
     } else if (s.pause > 0) {
       s.pause -= d
@@ -130,37 +166,53 @@ export default function Ghost({ onSay }) {
       if (s.roam <= 0) {
         s.roam = 3.2 + Math.random() * 4.5
         // a short hop along the lane, never a dash across the window
-        const span = lane.total * (0.1 + Math.random() * 0.22)
-        s.targetS = Math.max(0, Math.min(lane.total, s.s + (Math.random() < 0.5 ? -span : span)))
+        // a short hop, and never one that parks him behind the box
+        let t = s.s
+        for (let i = 0; i < 6; i++) {
+          const span = lane.total * (0.1 + Math.random() * 0.22)
+          t = Math.max(0, Math.min(lane.total, s.s + (Math.random() < 0.5 ? -span : span)))
+          if (s.hideS == null || Math.abs(t - s.hideS) > AVOID) break
+        }
+        s.targetS = t
         if (Math.random() < 0.3) s.pause = 1.4 + Math.random() * 2.6
       }
     }
 
+    // if he has ended up behind the box while calm, send him back out
+    if (s.stress <= 0.6 && !explaining && s.hideS != null && Math.abs(s.s - s.hideS) < AVOID * 0.8) {
+      s.targetS = s.hideS + (s.s < s.hideS ? -AVOID * 1.8 : AVOID * 1.8)
+      s.targetS = Math.max(0, Math.min(lane.total, s.targetS))
+      s.pause = 0
+    }
+
     // ease toward the target, but never faster than MAX_SPEED
     const gap = s.targetS - s.s
-    const want = Math.abs(gap) < 0.05 ? 0 : Math.sign(gap) * Math.min(MAX_SPEED, Math.abs(gap) * 1.1)
+    const cap = s.stress > 0.6 ? MAX_SPEED * 2.1 : MAX_SPEED
+    const want = Math.abs(gap) < 0.05 ? 0 : Math.sign(gap) * Math.min(cap, Math.abs(gap) * 1.1)
     s.vs += (want - s.vs) * Math.min(1, d * 2.2)
-    s.vs = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, s.vs))
+    s.vs = Math.max(-cap, Math.min(cap, s.vs))
     s.s = Math.max(0, Math.min(lane.total, s.s + s.vs * d))
 
     at(s.s, tmp)
     const bob = Math.sin(state.clock.elapsedTime * 1.5) * 0.075
     g.position.set(tmp.x, tmp.y + bob, 0.4)
 
-    // poking still works
+    /* Poking. This has to be a deliberate swat, not something that fires
+       because he happened to wander past a cursor that was drifting. So it
+       needs real speed, real proximity, and a cooldown between hits. */
     const pd = Math.hypot(cwx - tmp.x, cwy - tmp.y)
-    if (pd < 1.0 && pointer.inside) {
-      const impact = pointer.speed * 0.011 * (1 - pd / 1.0)
-      if (impact > 0.02) {
-        const before = s.stress
-        s.stress = Math.min(1.8, s.stress + impact)
-        s.hitT = 1.2
-        if (s.bubble <= 0 && s.stress > before + 0.05) {
-          s.bubble = 1.5
-          onSay?.({ text: HURT[(Math.random() * HURT.length) | 0], hurt: true })
-        }
+    s.cool = Math.max(0, (s.cool || 0) - d)
+    const POKE_SPEED = 16
+    if (!explaining && pd < 0.95 && pointer.inside && pointer.speed > POKE_SPEED && s.cool <= 0) {
+      s.cool = 0.55
+      s.stress = Math.min(1.8, s.stress + 0.42 + Math.min(0.5, pointer.speed / 90))
+      s.hitT = 1.2
+      if (s.bubble <= 0) {
+        s.bubble = 1.5
+        onSay?.({ text: HURT[(Math.random() * HURT.length) | 0], hurt: true })
       }
     }
+    if (!explaining) s.explained = false
     s.stress = Math.max(0, s.stress - d * 0.2)
     if (s.bubble > 0) {
       s.bubble -= d
@@ -170,8 +222,9 @@ export default function Ghost({ onSay }) {
     // a recent hit always wins, so the bubble and the face never disagree
     let mood
     if (s.stress > 0.7) mood = 'scared'
-    else if (s.hitT > 0 || s.stress > 0.25) mood = 'startled'
-    else if (pd < 2.0 && pointer.speed < 8 && pointer.inside) mood = 'pleased'
+    else if (s.hitT > 0 || s.stress > 0.3) mood = 'startled'
+    else if (explaining) mood = 'pleased'
+    else if (pd < 1.7 && pointer.speed < 6 && pointer.inside) mood = 'pleased'
     else mood = 'content'
 
     if (mood === 'pleased' && s.bubble <= 0 && Math.random() < d * 0.3) {
@@ -181,7 +234,11 @@ export default function Ghost({ onSay }) {
 
     const wantClip =
       mood === 'scared' || mood === 'startled' ? 'Scared' : mood === 'pleased' ? 'Wave' : 'Idle'
-    if (wantClip !== clip) setClip(wantClip)
+    s.clipHold = Math.max(0, (s.clipHold || 0) - d)
+    if (wantClip !== clip && s.clipHold <= 0) {
+      s.clipHold = 0.35
+      setClip(wantClip)
+    }
 
     const amt = Math.min(1, s.stress * 0.8)
     for (const m of mats) m.mat.color.copy(m.base).lerp(grey, amt)
@@ -193,9 +250,12 @@ export default function Ghost({ onSay }) {
     g.rotation.y = cur + Math.atan2(Math.sin(ry - cur), Math.cos(ry - cur)) * Math.min(1, d * 3.5)
     g.rotation.z += (-s.vs * 0.02 - g.rotation.z) * Math.min(1, d * 3.5)
 
+    const hiding = s.stress > 0.6 && s.hideS != null && Math.abs(s.s - s.hideS) < AVOID
     s.act =
-      s.stress > 0.7 ? 'sulking'
+      hiding ? 'hiding'
+      : s.stress > 0.7 ? 'running away'
       : s.hitT > 0 ? 'startled'
+      : explaining ? 'explaining'
       : mood === 'pleased' ? 'saying hello'
       : s.pause > 0 ? 'dozing'
       : Math.abs(s.vs) > 0.3 ? 'wandering'

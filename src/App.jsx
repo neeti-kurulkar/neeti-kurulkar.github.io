@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Scene from './three/Scene'
 import NameSwarm from './ui/NameSwarm'
-import { Hero, Education, Projects, Internships, Skills, Contact, ProjectSheet } from './ui/Sections'
+import { Hero, Background, Projects, Skills, Achievements, Contact, ProjectSheet } from './ui/Sections'
 import { attachPointer, pointer, telemetry } from './lib/pointer'
+
+const MOODS = { Idle: 'calm', Wave: 'pleased', Scared: 'rattled' }
 
 export default function App() {
   const [bubble, setBubble] = useState(null)
@@ -66,12 +68,8 @@ export default function App() {
       if (acc > 0.1) {
         acc = 0
         const r = readout.current
-        if (r.pos) r.pos.textContent =
-          `${String(Math.round((pointer.sx / window.innerWidth) * 1000)).padStart(4, '0')} / ${String(Math.round((pointer.sy / window.innerHeight) * 1000)).padStart(4, '0')}`
-        if (r.vel) r.vel.textContent = String(Math.round(pointer.speed))
-        if (r.swarm) r.swarm.textContent = telemetry.swarm
         if (r.act) r.act.textContent = telemetry.ghostAct
-        if (r.clip) r.clip.textContent = telemetry.ghostClip
+        if (r.clip) r.clip.textContent = MOODS[telemetry.ghostClip] || telemetry.ghostClip
         if (r.bar) r.bar.style.width = `${Math.round(telemetry.ghostCalm * 100)}%`
       }
       raf = requestAnimationFrame(loop)
@@ -82,28 +80,24 @@ export default function App() {
 
   return (
     <>
-      <Scene onGhostSay={setBubble} />
+      <Scene onGhostSay={setBubble} explaining={!!open} />
       <NameSwarm />
 
       <main className="page">
         <Hero />
-        <Education />
+        <Background />
         <Projects onOpen={openProject} />
-        <Internships />
         <Skills />
+        <Achievements />
         <Contact />
       </main>
 
       <aside className="readout" aria-hidden="true">
-        <h6>Cursor</h6>
-        <div className="row2"><span>position</span><b ref={(e) => (readout.current.pos = e)}>0000 / 0000</b></div>
-        <div className="row2"><span>speed</span><b ref={(e) => (readout.current.vel = e)}>0</b></div>
-        <div className="row2"><span>swarm</span><i ref={(e) => (readout.current.swarm = e)}>your name</i></div>
-        <hr />
         <h6>The ghost</h6>
         <div className="row2"><span>doing</span><i ref={(e) => (readout.current.act = e)}>loading</i></div>
-        <div className="row2"><span>clip</span><i ref={(e) => (readout.current.clip = e)}>—</i></div>
+        <div className="row2"><span>feeling</span><i ref={(e) => (readout.current.clip = e)}>&mdash;</i></div>
         <div className="row2"><span>patience</span><b><span className="bar"><span ref={(e) => (readout.current.bar = e)} /></span></b></div>
+        <p className="readout__hint">poke him</p>
       </aside>
 
       <div ref={bubbleRef} className={`bubble${bubble ? ' on' : ''}${bubble?.hurt ? ' hurt' : ''}`}>

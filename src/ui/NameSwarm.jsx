@@ -1,16 +1,19 @@
 import { useEffect, useRef } from 'react'
-import { pointer, heroExit, telemetry } from '../lib/pointer'
+import { pointer, heroExit } from '../lib/pointer'
 import { person } from '../content'
 
 /* The name, as particles, on its own 2D canvas.
 
-   Two states, same particles:
-     hero   - they hold the letterforms, lean toward the cursor from a
-              distance, shove apart and bruise dark when you push through
-     past it- they unravel onto the trail of a LEAD point, which chases the
-              cursor but always stops short of it. That standoff is why the
-              tail never pools into a ring around a still mouse and never
-              covers what is under the pointer. */
+   It does one job and then gets out of the way:
+
+     hero        the particles hold the letterforms. They lean toward your
+                 cursor from a distance, shove apart and bruise dark when you
+                 push through, and heal.
+
+     past it     the letters come apart and the particles drift outward into
+                 the background and become sky. They keep moving slowly left
+                 to right for the rest of the page, faint and far back. They
+                 never follow the pointer and can never cover the text. */
 
 const BASE = [
   [0.30, 0.55, 0.80],
@@ -20,7 +23,6 @@ const BASE = [
   [0.66, 0.80, 0.92],
 ]
 const DARK = [0.07, 0.13, 0.22]
-const TRAIL = 110
 
 export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
   const cv = useRef(null)
@@ -33,18 +35,9 @@ export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
 
     let dpr = 1
     let pts = []
-    const trX = new Float32Array(TRAIL)
-    const trY = new Float32Array(TRAIL)
-    let head = 0
-    let ready = false
-    let leadX = 0
-    let leadY = 0
-    let leadInit = false
-    let swirl = 0
-    let drift = 0
-    let activity = 0
     let raf = 0
     let last = performance.now()
+    let sky = 0 // how far the sky has drifted, in device pixels
 
     function build() {
       dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -79,10 +72,6 @@ export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
       pts = []
       const n = found.length / 2
       for (let i = 0; i < n; i++) {
-        const t = Math.pow(Math.random(), 0.7)
-        // a filled disc, not a fixed radius: collapsed this is a blob, not a ring
-        const a = Math.random() * 6.283
-        const r = Math.sqrt(Math.random())
         pts.push({
           hx: found[i * 2],
           hy: found[i * 2 + 1],
@@ -91,59 +80,20 @@ export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
           vx: 0,
           vy: 0,
           c: (Math.random() * BASE.length) | 0,
-          slot: 6 + t * (TRAIL - 9),
-          ox: Math.cos(a) * r * (10 + t * 78),
-          oy: Math.sin(a) * r * (10 + t * 78),
-          spin: (0.25 + Math.random() * 0.7) * (Math.random() < 0.5 ? -1 : 1),
+          // where this one ends up once it has become sky
+          sx: Math.random(),                        // 0..1 across the width
+          sy: Math.random(),                        // 0..1 down the height
+          sp: 0.25 + Math.random() * 1.1,           // its own drift speed
+          bob: Math.random() * 6.283,
         })
       }
     }
 
-    /* The lead hovers a set distance from the pointer, in the direction it
-       came from. When you stop moving it keeps drifting in a slow wide arc,
-       so the trail stays spread out and the tail never collapses to a blob. */
-    function updateLead(d) {
-      const mx = pointer.sx * dpr
-      const my = pointer.sy * dpr
-      if (!leadInit) { leadX = mx; leadY = my + 170 * dpr; leadInit = true }
-      const STANDOFF = 168 * dpr
-
-      // ramps to 1 after about a second of stillness
-      const calm = Math.max(0, Math.min(1, (pointer.idle - 0.45) / 1.1))
-      drift += d * (0.9 - calm * 0.52)
-
-      let dx = mx - leadX
-      let dy = my - leadY
-      let dist = Math.hypot(dx, dy)
-      if (dist < 0.001) { dx = 0; dy = 1; dist = 1 }
-      let tx = mx - (dx / dist) * STANDOFF
-      let ty = my - (dy / dist) * STANDOFF
-
-      // A wide, slow figure-of-eight while you are still. The two
-      // frequencies are deliberately incommensurate so the lead never
-      // retraces its own circle and the trail keeps its length.
-      const amp = calm * 185 * dpr
-      tx += Math.sin(drift) * amp
-      ty += Math.sin(drift * 0.61 + 1.1) * amp * 0.5
-
-      const f = Math.min(1, d * 4.2)
-      leadX += (tx - leadX) * f
-      leadY += (ty - leadY) * f
-
-      if (!ready) {
-        for (let i = 0; i < TRAIL; i++) { trX[i] = leadX; trY[i] = leadY }
-        ready = true
-        return
-      }
-      head = (head + 1) % TRAIL
-      trX[head] = leadX
-      trY[head] = leadY
-    }
-
-    function draw(free, d) {
+    function draw(free, d, now) {
       const W = canvas.width
       const H = canvas.height
       ctx.clearRect(0, 0, W, H)
+
       const mx = pointer.sx * dpr
       const my = pointer.sy * dpr
       const R = 122 * dpr
@@ -151,53 +101,44 @@ export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
       const PULL = 430 * dpr
       const PULL2 = PULL * PULL
       const k = Math.min(2.2, d * 60)
-      const radMul = (0.78 + activity * 0.34) * dpr
-      const alpha = 1 - free * 0.3
-      const KEEP = 140 * dpr
-      const KEEP2 = KEEP * KEEP
+
+      // faint once it is sky, so it reads as background and nothing else
+      const alpha = 1 - free * 0.82
+      // the pointer only has a say while the name is still a name
+      const grip = Math.max(0, 1 - free * 2.2)
 
       for (let i = 0; i < pts.length; i++) {
         const q = pts[i]
+
+        // target: the letterform, blended toward its place in the sky
         let hx = q.hx
         let hy = q.hy
-
-        if (free > 0.001 && ready) {
-          const idx = (head - (q.slot | 0) + TRAIL * 2) % TRAIL
-          const a = swirl * q.spin
-          const ca = Math.cos(a)
-          const sa = Math.sin(a)
-          let tx = trX[idx] + (q.ox * ca - q.oy * sa) * radMul
-          let ty = trY[idx] + (q.ox * sa + q.oy * ca) * radMul * 0.8
-          const ddx = tx - mx
-          const ddy = ty - my
-          const dd2 = ddx * ddx + ddy * ddy
-          if (dd2 < KEEP2) {
-            const dd = Math.sqrt(dd2) || 1
-            tx = mx + (ddx / dd) * KEEP
-            ty = my + (ddy / dd) * KEEP
-          }
-          hx += (tx - hx) * free
-          hy += (ty - hy) * free
+        if (free > 0.001) {
+          const driftX = (q.sx * W + sky * q.sp) % (W + 120 * dpr) - 60 * dpr
+          const driftY = q.sy * H + Math.sin(now * 0.00018 + q.bob) * 26 * dpr
+          hx += (driftX - hx) * free
+          hy += (driftY - hy) * free
         }
 
-        const dx = q.x - mx
-        const dy = q.y - my
-        const d2 = dx * dx + dy * dy
-        if (pointer.inside) {
+        if (grip > 0.01 && pointer.inside) {
+          const dx = q.x - mx
+          const dy = q.y - my
+          const d2 = dx * dx + dy * dy
           if (d2 < R2) {
             const dist = Math.sqrt(d2) || 1
-            const f = (1 - dist / R) * 6.2
+            const f = (1 - dist / R) * 6.2 * grip
             q.vx += (dx / dist) * f * k
             q.vy += (dy / dist) * f * k
-          } else if (free < 0.5 && d2 < PULL2) {
+          } else if (d2 < PULL2) {
             const dist = Math.sqrt(d2) || 1
-            const f = (1 - dist / PULL) * 0.55 * (1 - free * 2)
+            const f = (1 - dist / PULL) * 0.55 * grip
             q.vx -= (dx / dist) * f * k
             q.vy -= (dy / dist) * f * k
           }
         }
 
-        const spring = (0.05 - free * 0.016) * k
+        // looser spring once it is sky, so the drift reads as drift
+        const spring = (0.05 - free * 0.034) * k
         q.vx += (hx - q.x) * spring
         q.vy += (hy - q.y) * spring
         const damp = Math.pow(0.86, k)
@@ -206,13 +147,15 @@ export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
         q.x += q.vx * k
         q.y += q.vy * k
 
-        const t = Math.min(1, (Math.abs(q.x - hx) + Math.abs(q.y - hy)) / (70 * dpr))
+        // displaced particles bruise dark; only meaningful on the name
+        const t = grip <= 0.01 ? 0 : Math.min(1, (Math.abs(q.x - hx) + Math.abs(q.y - hy)) / (70 * dpr))
         const b = BASE[q.c]
         const r = Math.round((b[0] + (DARK[0] - b[0]) * t) * 255)
         const g = Math.round((b[1] + (DARK[1] - b[1]) * t) * 255)
         const bl = Math.round((b[2] + (DARK[2] - b[2]) * t) * 255)
         ctx.fillStyle = `rgba(${r},${g},${bl},${alpha})`
-        ctx.fillRect(q.x, q.y, 2 * dpr, 2 * dpr)
+        const s = free > 0.6 ? 1.6 * dpr : 2 * dpr
+        ctx.fillRect(q.x, q.y, s, s)
       }
     }
 
@@ -220,12 +163,8 @@ export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
       const d = Math.min(0.05, (now - last) / 1000)
       last = now
       const free = heroExit()
-      const want = Math.min(1, pointer.speed / 9)
-      activity += (want - activity) * Math.min(1, d * (want > activity ? 9 : 2.2))
-      swirl += d * (0.26 + activity * 1.2)
-      updateLead(d)
-      draw(free, d)
-      telemetry.swarm = free < 0.12 ? 'your name' : free > 0.88 ? (activity > 0.08 ? 'tail' : 'settled') : 'unravelling'
+      sky += d * 14 * dpr * free // only drifts once it has become sky
+      draw(free, d, now)
       raf = requestAnimationFrame(frame)
     }
 
@@ -234,7 +173,7 @@ export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
     window.addEventListener('resize', onResize)
 
     if (reduce) {
-      draw(0, 0.016)
+      draw(0, 0.016, performance.now())
     } else {
       raf = requestAnimationFrame(frame)
     }

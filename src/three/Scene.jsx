@@ -23,7 +23,7 @@ function Parallax({ group }) {
   return null
 }
 
-export default function Scene({ onGhostSay }) {
+export default function Scene({ onGhostSay, explaining }) {
   const bg = useRef()
   return (
     <Canvas
@@ -48,7 +48,7 @@ export default function Scene({ onGhostSay }) {
 
       {/* the ghost is pinned to the viewport, never parallaxed */}
       <Suspense fallback={null}>
-        <Ghost onSay={onGhostSay} />
+        <Ghost onSay={onGhostSay} explaining={explaining} />
       </Suspense>
 
       <Parallax group={bg} />
