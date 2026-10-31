@@ -4,7 +4,7 @@ export const person = {
   name: 'Neeti Kurulkar',
   first: 'Neeti',
   last: 'Kurulkar',
-  line: 'I measure how AI systems fail, then build the part that stops them.',
+  line: 'Spending my masters trying to build (and break) AI models.',
   where: 'MSc Artificial Intelligence · Plaksha University',
   email: 'neetikurulkar@gmail.com',
   github: 'https://github.com/neeti-kurulkar',
@@ -200,10 +200,10 @@ export const achievements = [
 /* What the ghost says as each section arrives. One line per visit; he keeps
    quiet if he is already saying something or sulking. Rewrite freely. */
 export const sectionLines = {
-  background: ['two degrees, one city', 'she has been busy', 'nine point three, if you were wondering'],
+  background: ['it\'s two degrees out here', 'she has been busy'],
   projects: ['this is the good bit', 'ooh, the projects', 'she will want you to read these'],
   skills: ['a lot of acronyms down here', 'she speaks four languages, by the way'],
-  achievements: ['she won things', 'first place, once'],
+  achievements: ['she won things', 'first place!'],
   contact: ['go on, say hello', 'she does reply'],
 }
 
