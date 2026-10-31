@@ -14,10 +14,10 @@ import { pokeLines } from '../content'
 const GLAD = ['boo', 'hi!', '♪', 'hehe']
 const EXPLAIN = ['this one’s good', 'read this bit', 'she likes this one', 'ooh, this one']
 
-const HOVER_SPEED = 0.22 // world units per second while hovering up and down
+const HOVER_SPEED = 0.75 // world units per second while hovering up and down
 const CROSS_SPEED = 1.3 // when he drifts over to the other side
 const ESCAPE_SPEED = 2.6 // rising back out from behind the readout box
-const FLEE_SPEED = 11 // when he has been poked too hard: he bolts
+const FLEE_SPEED = 5 // when he has been poked too hard: he bolts
 const CROSS_EVERY = 30 // seconds, roughly, between crossings
 
 export default function Ghost({ onSay, explaining }) {
