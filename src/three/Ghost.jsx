@@ -42,6 +42,8 @@ export default function Ghost({ onSay, explaining }) {
     const list = []
     model.traverse((m) => {
       if ((m.isMesh || m.isSkinnedMesh) && m.material?.color) {
+        m.material.transparent = true
+        m.material.depthWrite = true
         list.push({ mat: m.material, base: m.material.color.clone() })
       }
     })
@@ -78,7 +80,8 @@ export default function Ghost({ onSay, explaining }) {
     const topY = halfH - 1.9
     const L = sides ? topY - bottomY : 0
     const B = rightX - leftX
-    return { leftX, rightX, bottomY, topY, L, B, total: L + B + L, sides }
+    const gutterW = gutterPx * px2w
+    return { leftX, rightX, bottomY, topY, L, B, total: L + B + L, sides, gutterW }
   }, [viewport.width, viewport.height, size.width])
 
   const at = useMemo(
@@ -143,7 +146,11 @@ export default function Ghost({ onSay, explaining }) {
     /* He may travel the whole lane, but he only ever stops at the ends: the
        two side lanes and the corners of the bottom. The middle of the bottom
        run sits under the content column, and he gets lost behind it there. */
-    const endOfBottom = lane.B * 0.16
+    /* The bottom corners reach only as far as the edge of the content
+       column, so a resting ghost is never in front of the text. He is the
+       width of a gutter out from the frame, so half a gutter of bottom is
+       the most that stays clear. */
+    const endOfBottom = lane.sides ? Math.max(0.1, lane.gutterW * 0.42) : lane.B * 0.08
     const restA = lane.L + endOfBottom            // end of the left-hand zone
     let restB = lane.L + lane.B - endOfBottom     // start of the right-hand zone
     /* The readout box sits at the bottom right, exactly where the right-hand
@@ -151,7 +158,8 @@ export default function Ghost({ onSay, explaining }) {
        behind it, gets snapped back to the start of the zone, and loops for
        ever. Begin the zone above the box instead. */
     if (s.hideS != null) {
-      restB = Math.min(lane.total - 0.1, Math.max(restB, s.hideS + AVOID * 1.5))
+      const ceiling = lane.total - Math.max(0.4, lane.L * 0.35) // leave him room up there
+      restB = Math.min(ceiling, Math.max(restB, s.hideS + AVOID * 1.5))
     }
     const parkable = (v) => v <= restA || v >= restB
 
@@ -218,7 +226,10 @@ export default function Ghost({ onSay, explaining }) {
     // never let him settle in the middle, or behind the box
     if (!s.fleeing && !explaining) {
       const stuckBehindBox = s.hideS != null && Math.abs(s.s - s.hideS) < AVOID * 0.8
-      const stuckInMiddle = !parkable(s.s) && Math.abs(s.vs) < 0.35
+      // en route is not the same as stuck: he is only stuck if his
+      // destination is no good either, otherwise this fires while he is
+      // still picking up speed and bounces him back where he came from
+      const stuckInMiddle = !parkable(s.s) && !parkable(s.targetS)
       if (stuckBehindBox) {
         s.targetS = Math.max(0, Math.min(lane.total, s.hideS + (s.s < s.hideS ? -AVOID * 1.8 : AVOID * 1.8)))
         s.pause = 0
@@ -287,7 +298,15 @@ export default function Ghost({ onSay, explaining }) {
     }
 
     const amt = Math.min(1, s.stress * 0.8)
-    for (const m of mats) m.mat.color.copy(m.base).lerp(grey, amt)
+    /* He is only ever over the content while crossing the middle of the
+       bottom run. Rather than route around it, he does the obvious thing for
+       a ghost and goes see-through, so he can never obscure the text. */
+    const crossing = !parkable(s.s)
+    s.fade = (s.fade ?? 1) + ((crossing ? 0.18 : 1) - (s.fade ?? 1)) * Math.min(1, d * 5)
+    for (const m of mats) {
+      m.mat.color.copy(m.base).lerp(grey, amt)
+      m.mat.opacity = s.fade
+    }
 
     // face his direction of travel; turn his back when he has had enough
     let ry = Math.abs(s.vs) > 0.25 ? (s.vs > 0 ? 0.45 : -0.45) : cwx > tmp.x ? 0.25 : -0.25
