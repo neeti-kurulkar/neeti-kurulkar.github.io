@@ -8,7 +8,7 @@ the page, a 2D particle canvas over it, and the content on top.
 | Layer | What it does |
 |---|---|
 | `src/three/Scene.jsx` | The 3D world. The camera never moves; parallax is applied to the background group instead, so world coordinates map predictably to the screen. |
-| `src/three/Ghost.jsx` | The ghost. He wanders a lane around the edge of the window, computed from the real content column so he is never over the text. He does not follow the cursor; he moves at a capped speed with pauses. |
+| `src/three/Ghost.jsx` | The ghost. He hovers in one of the gutters beside the content column, drifting slowly up and down, and roughly every 30 seconds floats across to the other side, behind the cards. He does not follow the cursor. |
 | `src/ui/NameSwarm.jsx` | The name in particles. In the hero they hold the letterforms; past it they unravel onto the cursor's trail. |
 | `src/lib/pointer.js` | One shared pointer store, read inside `useFrame` so moving the mouse never re-renders React. |
 
@@ -16,7 +16,7 @@ the page, a 2D particle canvas over it, and the content on top.
 
 He ships with three animation clips and they map onto his state:
 
-- **Idle** — roaming or drifting
+- **Idle** — hovering or drifting across
 - **Wave** — you are near his lane and moving gently
 - **Scared** — you swatted him. He drains of colour, backs off to the far end
   of the lane and turns his back until he has forgiven it.
@@ -61,7 +61,10 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build
 npm run preview
-npm run deploy     # builds, then publishes dist/ to GitHub Pages
 ```
+
+Deploys are automatic: every push to `main` runs
+`.github/workflows/deploy.yml`, which builds and publishes `dist/` to GitHub
+Pages. In the repo settings, Pages → Source must be set to **GitHub Actions**.
 
 All copy lives in `src/content.js`.

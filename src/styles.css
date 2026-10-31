@@ -306,9 +306,11 @@ a { color: inherit; }
 .bar { display: inline-block; width: 42px; height: 5px; background: var(--b1); vertical-align: middle; position: relative; }
 .bar > span { position: absolute; inset: 0 auto 0 0; background: var(--b4); width: 100%; }
 
-/* ---------- speech bubble ---------- */
+/* ---------- speech bubble ----------
+   Sits above the 3D scene but below the page, so when the ghost floats
+   behind a card his bubble goes behind it with him. */
 .bubble {
-  position: fixed; z-index: 6; pointer-events: none;
+  position: fixed; z-index: 1; pointer-events: none;
   transform: translate(-50%, -100%) scale(0.6);
   background: var(--b5); color: #0b0e13;
   font-family: var(--f-display); font-variation-settings: 'wght' 700;

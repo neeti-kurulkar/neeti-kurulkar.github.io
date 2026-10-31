@@ -6,16 +6,18 @@ import { pointer, telemetry } from '../lib/pointer'
 
 /* Arsyuta777's ghost, CC BY 4.0.
 
-   He lives on a lane around the edge of the window, worked out from the real
-   content column so he is never over the text. He does not chase the cursor:
-   he wanders the lane at his own pace, capped speed, with pauses. You can
-   still poke him. */
+   He hovers in one of the gutters beside the content column, drifting slowly
+   up and down. Every half minute or so he floats across to the other side,
+   behind the cards. He does not chase the cursor. You can still poke him. */
 
 const HURT = ['ouch!', 'hey!', 'ow.', 'rude.', 'eek!']
 const GLAD = ['boo', 'hi!', '♪', 'hehe']
 const EXPLAIN = ['this one’s good', 'read this bit', 'she likes this one', 'ooh, this one']
 
-const MAX_SPEED = 3.4 // world units per second along the lane
+const HOVER_SPEED = 0.22 // world units per second while hovering up and down
+const CROSS_SPEED = 1.3 // when he drifts over to the other side
+const FLEE_SPEED = 3.2 // when he has been poked too hard
+const CROSS_EVERY = 30 // seconds, roughly, between crossings
 
 export default function Ghost({ onSay, explaining }) {
   const url = `${import.meta.env.BASE_URL}models/ghost.glb`
@@ -49,8 +51,8 @@ export default function Ghost({ onSay, explaining }) {
   }, [model])
 
   const st = useRef({
-    s: 0, targetS: 0, vs: 0, roam: 0, pause: 0,
-    stress: 0, hitT: 0, bubble: 0, act: 'drifting', seeded: false,
+    x: 0, y: 0, vx: 0, vy: 0, side: -1, yT: 0, yTimer: 0, crossT: 30,
+    stress: 0, hitT: 0, bubble: 0, act: 'hovering', seeded: false,
     hideHold: 0, fleeing: false, hidDone: false,
   })
 
@@ -64,7 +66,9 @@ export default function Ghost({ onSay, explaining }) {
     telemetry.ghostClip = clip
   }, [clip, actions])
 
-  /* the lane, in world units on the z = 0 plane */
+  /* His two homes, in world units on the z = 0 plane: the middle of the left
+     gutter and the middle of the right one. On a narrow screen there are no
+     gutters, so he keeps to the two bottom corners instead. */
   const lane = useMemo(() => {
     const px2w = viewport.width / size.width
     const contentPx = Math.min(1020, size.width - 36)
@@ -75,160 +79,85 @@ export default function Ghost({ onSay, explaining }) {
     const leftX = sides ? -halfW + (gutterPx * px2w) / 2 : -halfW + 0.85
     const rightX = sides ? halfW - (gutterPx * px2w) / 2 : halfW - 0.85
     const bottomY = -halfH + 0.9
-    const topY = halfH - 1.9
-    const L = sides ? topY - bottomY : 0
-    const B = rightX - leftX
-    return { leftX, rightX, bottomY, topY, L, B, total: L + B + L, sides }
+    const topY = sides ? halfH - 1.9 : bottomY + 0.4
+    return { leftX, rightX, bottomY, topY, sides, ok: rightX > leftX }
   }, [viewport.width, viewport.height, size.width])
-
-  const at = useMemo(
-    () => (s, out) => {
-      const v = Math.max(0, Math.min(lane.total, s))
-      if (v < lane.L) {
-        out.x = lane.leftX
-        out.y = lane.topY - v
-      } else if (v < lane.L + lane.B) {
-        out.x = lane.leftX + (v - lane.L)
-        out.y = lane.bottomY
-      } else {
-        out.x = lane.rightX
-        out.y = lane.bottomY + (v - lane.L - lane.B)
-      }
-      return out
-    },
-    [lane],
-  )
-
-  /* Where the cards actually are, in world units on the z = 0 plane. This
-     is the one span he is not allowed to stop in. */
-  const contentAt = useMemo(
-    () => () => {
-      const els = document.querySelectorAll('section.station')
-      let l = Infinity
-      let r = -Infinity
-      for (const el of els) {
-        const b = el.getBoundingClientRect()
-        if (b.bottom < 0 || b.top > size.height) continue
-        l = Math.min(l, b.left)
-        r = Math.max(r, b.right)
-      }
-      if (!isFinite(l)) return null
-      const pad = 26
-      return {
-        l: ((l - pad) / size.width * 2 - 1) * (viewport.width / 2),
-        r: ((r + pad) / size.width * 2 - 1) * (viewport.width / 2),
-      }
-    },
-    [size.width, size.height, viewport.width],
-  )
-
-  const tmp = useMemo(() => ({ x: 0, y: 0 }), [])
-  const probe = useMemo(() => ({ x: 0, y: 0 }), [])
 
   /* The readout box is DOM painted over the canvas, so parking him there
      really does hide him. We want that on purpose when he sulks, and never
-     by accident while he is just wandering. */
-  const hideAt = useMemo(() => () => {
+     by accident while he is just hovering. */
+  const readoutAt = useMemo(() => () => {
     const el = document.querySelector('.readout')
-    if (!el || lane.total <= 0) return null
+    if (!el) return null
     const r = el.getBoundingClientRect()
-    const wx = ((r.left + r.width / 2) / size.width * 2 - 1) * (viewport.width / 2)
-    const wy = -((r.top + r.height / 2) / size.height * 2 - 1) * (viewport.height / 2)
-    let best = 0
-    let bestD = Infinity
-    for (let i = 0; i <= 64; i++) {
-      const ss = (lane.total * i) / 64
-      at(ss, probe)
-      const dd = Math.hypot(probe.x - wx, probe.y - wy)
-      if (dd < bestD) { bestD = dd; best = ss }
+    if (r.width === 0 || r.height === 0) return null
+    const toX = (px) => (px / size.width * 2 - 1) * (viewport.width / 2)
+    const toY = (py) => -(py / size.height * 2 - 1) * (viewport.height / 2)
+    return {
+      cx: toX(r.left + r.width / 2),
+      cy: toY(r.top + r.height / 2),
+      left: toX(r.left),
+      top: toY(r.top),
     }
-    return best
-  }, [lane, size.width, size.height, viewport.width, viewport.height, at, probe])
+  }, [size.width, size.height, viewport.width, viewport.height])
+
   const grey = useMemo(() => new THREE.Color('#5c6672'), [])
   const screenV = useMemo(() => new THREE.Vector3(), [])
 
   useFrame((state, dt) => {
     const g = group.current
-    if (!g || lane.total <= 0) return
+    if (!g || !lane.ok) return
     const s = st.current
     const d = Math.min(0.05, dt)
     s.hitT = Math.max(0, s.hitT - d)
     if (!s.seeded) {
-      s.s = lane.total * 0.45
-      s.targetS = s.s
+      s.side = -1
+      s.x = lane.leftX
+      s.y = (lane.topY + lane.bottomY) / 2
+      s.yT = s.y
+      s.crossT = CROSS_EVERY * (0.85 + Math.random() * 0.3)
       s.seeded = true
     }
 
-    s.hideTick = (s.hideTick || 0) - d
-    if (s.hideTick <= 0) {
-      s.hideTick = 0.4
-      s.hideS = hideAt()
-      s.col = contentAt()
-    }
-    const AVOID = lane.total * 0.085
-
-    /* The only rule: he must not come to a stop where the cards are. He is
-       free to roam the whole lane otherwise, including straight across the
-       middle.
-
-       The forbidden spans (the content column, and a margin round the
-       readout box) can overlap, so they are merged before use. Without that,
-       pushing him out of one span drops him into the other and he oscillates
-       to a halt on the boundary. */
-    const blocked = []
-    if (s.col) {
-      blocked.push([lane.L + (s.col.l - lane.leftX), lane.L + (s.col.r - lane.leftX)])
-    }
-    if (s.hideS != null) {
-      blocked.push([s.hideS - AVOID * 0.7, s.hideS + AVOID * 0.7])
-    }
-    blocked.sort((x, y) => x[0] - y[0])
-    const spans = []
-    for (const f of blocked) {
-      const last = spans[spans.length - 1]
-      if (last && f[0] <= last[1]) last[1] = Math.max(last[1], f[1])
-      else spans.push([f[0], f[1]])
+    s.boxTick = (s.boxTick || 0) - d
+    if (s.boxTick <= 0) {
+      s.boxTick = 0.4
+      s.box = readoutAt()
     }
 
-    const noStop = (v) => spans.some(([lo, hi]) => v > lo && v < hi)
-    const nearestStop = (v) => {
-      for (const [lo, hi] of spans) {
-        if (v > lo && v < hi) {
-          const out1 = lo - 0.2
-          const out2 = hi + 0.2
-          if (out1 < 0) return Math.min(lane.total, out2)
-          if (out2 > lane.total) return Math.max(0, out1)
-          return v - lo < hi - v ? out1 : out2
-        }
-      }
-      return v
-    }
+    // on the right he keeps above the readout box unless he means to hide
+    const clearY = s.box ? s.box.top + 0.75 : -Infinity
+    const minYFor = (side) =>
+      side > 0 ? Math.min(lane.topY, Math.max(lane.bottomY, clearY)) : lane.bottomY
+    const homeX = (side) => (side > 0 ? lane.rightX : lane.leftX)
 
     const cwx = (pointer.nx * viewport.width) / 2
     const cwy = (pointer.ny * viewport.height) / 2
-    at(s.s, tmp)
 
-    /* He wanders. He does not follow you, with two exceptions: he edges away
-       when upset, and he comes over to the sheet when you open a project. */
+    let tx
+    let ty
+    let speed = HOVER_SPEED
     if (explaining) {
-      // park beside the overlay, a little above the bottom of the left lane
-      s.targetS = lane.sides ? lane.L * 0.42 : lane.total * 0.2
-      s.pause = 0
+      // park beside the overlay, a little below the middle of the left side
+      s.side = -1
+      tx = lane.leftX
+      ty = lane.sides ? lane.topY - (lane.topY - lane.bottomY) * 0.42 : lane.bottomY
+      s.yT = ty
+      speed = CROSS_SPEED
       if (!s.explained) {
         s.explained = true
         s.bubble = 2.4
         onSay?.({ text: EXPLAIN[(Math.random() * EXPLAIN.length) | 0], hurt: false })
       }
-    } else if (s.fleeing) {
+    } else if (s.fleeing && s.box) {
       /* Poked too hard. This is a latched state, not a stress reading: he
          commits to the run, hides behind the readout box for five seconds,
          and cannot be poked again until he comes back out. */
-      s.targetS = s.hideS != null ? s.hideS : cwx > tmp.x ? 0 : lane.total
-      s.pause = 0
-      const home = s.hideS != null && Math.abs(s.s - s.hideS) < AVOID * 0.7
-      if (home && s.hideHold <= 0 && !s.hidDone) {
-        s.hideHold = 5
-      }
+      tx = s.box.cx
+      ty = s.box.cy
+      speed = FLEE_SPEED
+      const home = Math.hypot(s.x - tx, s.y - ty) < 0.35
+      if (home && s.hideHold <= 0 && !s.hidDone) s.hideHold = 5
       if (s.hideHold > 0) {
         s.hideHold -= d
         if (s.hideHold <= 0) {
@@ -236,43 +165,66 @@ export default function Ghost({ onSay, explaining }) {
           s.hidDone = true
           s.fleeing = false
           s.stress = 0
-          // step back out from behind the box
-          s.targetS = nearestStop(Math.max(0, s.s - AVOID * 3))
+          // come back out on the right, above the box, and settle in
+          s.side = 1
+          s.yT = minYFor(1) + Math.random() * Math.max(0, lane.topY - minYFor(1)) * 0.5
+          s.crossT = CROSS_EVERY * (0.85 + Math.random() * 0.3)
         }
       }
-    } else if (s.pause > 0) {
-      s.pause -= d
-      s.targetS = s.s
     } else {
-      s.roam -= d
-      if (s.roam <= 0) {
-        s.roam = 1.6 + Math.random() * 2.6
-        // anywhere on the lane, nudged out of the no-stop span if it lands there
-        const t = nearestStop(Math.random() * lane.total)
-        s.targetS = Math.max(0, Math.min(lane.total, t))
-        if (Math.random() < 0.22) s.pause = 1.0 + Math.random() * 1.8
+      if (s.fleeing) {
+        // nowhere to hide (narrow screen): just back off to the far corner
+        s.side = cwx > s.x ? -1 : 1
+        speed = FLEE_SPEED
+        if (s.hitT <= 0) { s.fleeing = false; s.stress = Math.min(s.stress, 0.5) }
+      }
+
+      // every half minute or so he drifts over to the other side
+      // the clock only runs while he is settled at home, not mid-crossing
+      if (Math.abs(homeX(s.side) - s.x) < 0.3) s.crossT -= d
+      if (s.crossT <= 0) {
+        s.side = -s.side
+        s.crossT = CROSS_EVERY * (0.85 + Math.random() * 0.3)
+        s.yTimer = 0
+      }
+
+      // otherwise he just hovers, picking a new height now and then
+      s.yTimer -= d
+      if (s.yTimer <= 0) {
+        s.yTimer = 6 + Math.random() * 5
+        const lo = minYFor(s.side)
+        s.yT = lo + Math.random() * Math.max(0, lane.topY - lo)
+      }
+      s.yT = Math.max(minYFor(s.side), Math.min(lane.topY, s.yT))
+      tx = homeX(s.side)
+      ty = s.yT
+      if (Math.abs(tx - s.x) > 0.3) speed = CROSS_SPEED
+
+      /* Heading right while still low: hold short of the readout box until
+         he has risen above it, so he never slips behind it by accident. */
+      if (s.box && tx > s.x && s.y < clearY - 0.05) {
+        tx = Math.min(tx, s.box.left - 0.9)
       }
     }
 
-    // he may cross the no-stop span, he just may not come to rest in it
-    if (!s.fleeing && !explaining) {
-      if (noStop(s.targetS)) s.targetS = nearestStop(s.targetS)
-      if (noStop(s.s)) {
-        s.pause = 0
-        if (Math.abs(s.vs) < 0.3) s.targetS = nearestStop(s.s)
-      }
+    // ease toward the target with a soft speed cap, so he glides rather than darts
+    const gx = tx - s.x
+    const gy = ty - s.y
+    const wantX = Math.abs(gx) < 0.02 ? 0 : Math.sign(gx) * Math.min(speed, Math.abs(gx) * 0.8)
+    const yCap = speed === HOVER_SPEED ? HOVER_SPEED : Math.max(HOVER_SPEED, speed * 0.6)
+    const wantY = Math.abs(gy) < 0.02 ? 0 : Math.sign(gy) * Math.min(yCap, Math.abs(gy) * 0.6)
+    const k = Math.min(1, d * 1.4)
+    s.vx += (wantX - s.vx) * k
+    s.vy += (wantY - s.vy) * k
+    s.x += s.vx * d
+    s.y += s.vy * d
+    if (!(s.fleeing || explaining)) {
+      s.x = Math.max(lane.leftX - 0.2, Math.min(lane.rightX + 0.2, s.x))
     }
+    s.vs = s.vx
 
-    // ease toward the target, but never faster than MAX_SPEED
-    const gap = s.targetS - s.s
-    const cap = s.stress > 0.6 ? MAX_SPEED * 2.1 : MAX_SPEED
-    const want = Math.abs(gap) < 0.05 ? 0 : Math.sign(gap) * Math.min(cap, Math.abs(gap) * 1.1)
-    s.vs += (want - s.vs) * Math.min(1, d * 2.2)
-    s.vs = Math.max(-cap, Math.min(cap, s.vs))
-    s.s = Math.max(0, Math.min(lane.total, s.s + s.vs * d))
-
-    at(s.s, tmp)
-    const bob = Math.sin(state.clock.elapsedTime * 1.5) * 0.075
+    const tmp = s
+    const bob = Math.sin(state.clock.elapsedTime * 0.9) * 0.08
     g.position.set(tmp.x, tmp.y + bob, 0.4)
 
     /* Poking. This has to be a deliberate swat, not something that fires
@@ -334,9 +286,8 @@ export default function Ghost({ onSay, explaining }) {
       : s.hitT > 0 ? 'startled'
       : explaining ? 'explaining'
       : mood === 'pleased' ? 'saying hello'
-      : s.pause > 0 ? 'dozing'
-      : Math.abs(s.vs) > 0.3 ? 'wandering'
-      : 'drifting'
+      : Math.abs(s.vx) > 0.3 ? 'drifting across'
+      : 'hovering'
     telemetry.ghostAct = s.act
     telemetry.ghostCalm = 1 - Math.min(1, s.stress / 1.2)
 
