@@ -42,8 +42,6 @@ export default function Ghost({ onSay, explaining }) {
     const list = []
     model.traverse((m) => {
       if ((m.isMesh || m.isSkinnedMesh) && m.material?.color) {
-        m.material.transparent = true
-        m.material.depthWrite = true
         list.push({ mat: m.material, base: m.material.color.clone() })
       }
     })
@@ -298,15 +296,7 @@ export default function Ghost({ onSay, explaining }) {
     }
 
     const amt = Math.min(1, s.stress * 0.8)
-    /* He is only ever over the content while crossing the middle of the
-       bottom run. Rather than route around it, he does the obvious thing for
-       a ghost and goes see-through, so he can never obscure the text. */
-    const crossing = !parkable(s.s)
-    s.fade = (s.fade ?? 1) + ((crossing ? 0.18 : 1) - (s.fade ?? 1)) * Math.min(1, d * 5)
-    for (const m of mats) {
-      m.mat.color.copy(m.base).lerp(grey, amt)
-      m.mat.opacity = s.fade
-    }
+    for (const m of mats) m.mat.color.copy(m.base).lerp(grey, amt)
 
     // face his direction of travel; turn his back when he has had enough
     let ry = Math.abs(s.vs) > 0.25 ? (s.vs > 0 ? 0.45 : -0.45) : cwx > tmp.x ? 0.25 : -0.25
