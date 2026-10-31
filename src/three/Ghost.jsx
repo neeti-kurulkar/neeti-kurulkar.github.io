@@ -51,6 +51,7 @@ export default function Ghost({ onSay, explaining }) {
   const st = useRef({
     s: 0, targetS: 0, vs: 0, roam: 0, pause: 0,
     stress: 0, hitT: 0, bubble: 0, act: 'drifting', seeded: false,
+    hideHold: 0, fleeing: false, hidDone: false,
   })
 
   useEffect(() => {
@@ -154,10 +155,27 @@ export default function Ghost({ onSay, explaining }) {
         s.bubble = 2.4
         onSay?.({ text: EXPLAIN[(Math.random() * EXPLAIN.length) | 0], hurt: false })
       }
-    } else if (s.stress > 0.6) {
-      // poked too hard: run off and hide behind the readout box
+    } else if (s.fleeing) {
+      /* Poked too hard. This is a latched state, not a stress reading: he
+         commits to the run, hides behind the readout box for five seconds,
+         and cannot be poked again until he comes back out. */
       s.targetS = s.hideS != null ? s.hideS : cwx > tmp.x ? 0 : lane.total
       s.pause = 0
+      const home = s.hideS != null && Math.abs(s.s - s.hideS) < AVOID * 0.7
+      if (home && s.hideHold <= 0 && !s.hidDone) {
+        s.hideHold = 5
+      }
+      if (s.hideHold > 0) {
+        s.hideHold -= d
+        if (s.hideHold <= 0) {
+          s.hideHold = 0
+          s.hidDone = true
+          s.fleeing = false
+          s.stress = 0
+          // step back out from behind the box
+          s.targetS = Math.max(0, Math.min(lane.total, s.s - AVOID * 2.6))
+        }
+      }
     } else if (s.pause > 0) {
       s.pause -= d
       s.targetS = s.s
@@ -202,18 +220,20 @@ export default function Ghost({ onSay, explaining }) {
        needs real speed, real proximity, and a cooldown between hits. */
     const pd = Math.hypot(cwx - tmp.x, cwy - tmp.y)
     s.cool = Math.max(0, (s.cool || 0) - d)
-    const POKE_SPEED = 16
-    if (!explaining && pd < 0.95 && pointer.inside && pointer.speed > POKE_SPEED && s.cool <= 0) {
+    const POKE_SPEED = 11
+    const unreachable = s.fleeing
+    if (!explaining && !unreachable && pd < 0.95 && pointer.inside && pointer.speed > POKE_SPEED && s.cool <= 0) {
       s.cool = 0.55
-      s.stress = Math.min(1.8, s.stress + 0.42 + Math.min(0.5, pointer.speed / 90))
+      s.stress = Math.min(1.8, s.stress + 0.56 + Math.min(0.6, pointer.speed / 70))
       s.hitT = 1.2
+      if (s.stress > 0.6) { s.fleeing = true; s.hidDone = false }
       if (s.bubble <= 0) {
         s.bubble = 1.5
         onSay?.({ text: HURT[(Math.random() * HURT.length) | 0], hurt: true })
       }
     }
     if (!explaining) s.explained = false
-    s.stress = Math.max(0, s.stress - d * 0.2)
+    if (!s.fleeing) s.stress = Math.max(0, s.stress - d * 0.2)
     if (s.bubble > 0) {
       s.bubble -= d
       if (s.bubble <= 0) onSay?.(null)
@@ -221,13 +241,13 @@ export default function Ghost({ onSay, explaining }) {
 
     // a recent hit always wins, so the bubble and the face never disagree
     let mood
-    if (s.stress > 0.7) mood = 'scared'
+    if (s.fleeing || s.stress > 0.7) mood = 'scared'
     else if (s.hitT > 0 || s.stress > 0.3) mood = 'startled'
     else if (explaining) mood = 'pleased'
-    else if (pd < 1.7 && pointer.speed < 6 && pointer.inside) mood = 'pleased'
+    else if (pd < 2.8 && pointer.speed < 11 && pointer.inside) mood = 'pleased'
     else mood = 'content'
 
-    if (mood === 'pleased' && s.bubble <= 0 && Math.random() < d * 0.3) {
+    if (mood === 'pleased' && s.bubble <= 0 && Math.random() < d * 0.9) {
       s.bubble = 1.1
       onSay?.({ text: GLAD[(Math.random() * GLAD.length) | 0], hurt: false })
     }
@@ -250,10 +270,10 @@ export default function Ghost({ onSay, explaining }) {
     g.rotation.y = cur + Math.atan2(Math.sin(ry - cur), Math.cos(ry - cur)) * Math.min(1, d * 3.5)
     g.rotation.z += (-s.vs * 0.02 - g.rotation.z) * Math.min(1, d * 3.5)
 
-    const hiding = s.stress > 0.6 && s.hideS != null && Math.abs(s.s - s.hideS) < AVOID
+    const hiding = s.hideHold > 0
     s.act =
-      hiding ? 'hiding'
-      : s.stress > 0.7 ? 'running away'
+      hiding ? `hiding (${Math.ceil(s.hideHold)}s)`
+      : s.fleeing ? 'running away'
       : s.hitT > 0 ? 'startled'
       : explaining ? 'explaining'
       : mood === 'pleased' ? 'saying hello'

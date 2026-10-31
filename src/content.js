@@ -87,7 +87,7 @@ export const projects = [
     detail:
       'The agents handle intent, schema navigation, SQL generation, validation, insight and visualisation in turn. Retrieval-augmented generation pulls few-shot examples from ChromaDB by semantic similarity. Organisations are isolated from each other with role-based access behind JWT, and the React front end renders whichever chart the data actually warrants rather than a fixed dashboard.',
     stack: ['LangGraph', 'FastAPI', 'PostgreSQL', 'React', 'ChromaDB'],
-    demo: null,
+    demo: { label: 'Open finq', href: 'https://finq.web.app/' },
     code: 'https://github.com/neeti-kurulkar/be-project-text-to-sql',
   },
   {

@@ -56,7 +56,7 @@ export default function NameSwarm({ font = 'Bricolage Grotesque' }) {
       const size = Math.min(W * 0.134, H * 0.2)
       o.font = `800 ${size}px "${font}", sans-serif`
       const cx = W * 0.5
-      const cy = H * 0.47
+      const cy = H * 0.57
       o.fillText(person.first, cx, cy - size * 0.54)
       o.fillText(person.last, cx, cy + size * 0.54)
 

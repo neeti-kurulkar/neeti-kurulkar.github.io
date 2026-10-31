@@ -67,14 +67,13 @@ a { color: inherit; }
 .station {
   max-width: var(--col);
   margin: 0 auto;
-  min-height: 100svh;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding-block: 88px 160px;
+  padding-block: 84px;
 }
 
-.hero { justify-content: flex-start; padding-block: 72px 160px; }
+.hero { justify-content: flex-start; min-height: 100svh; padding-block: 72px 140px; }
 .hero__line {
   font-weight: 500;
   font-size: clamp(1.1rem, 0.85rem + 1.05vw, 1.55rem);
@@ -362,7 +361,7 @@ a { color: inherit; }
   .arch { grid-template-columns: 3rem 1fr; }
   .arch__links { grid-column: 2; }
   .readout { display: none; }
-  .station { padding-block: 72px 120px; }
+  .station { padding-block: 60px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
