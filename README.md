@@ -1,139 +1,67 @@
-# Personal Portfolio Website
+# neeti-kurulkar.github.io
 
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)
-![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=three.js&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+A single-page portfolio built on React Three Fiber. One fixed 3D scene behind
+the page, a 2D particle canvas over it, and the content on top.
 
-A personal **portfolio website** showcasing my skills, projects, and experiences, featuring an interactive 3D laptop model built with **React Three Fiber** and styled with **Tailwind CSS**.
+## What is moving
 
----
+| Layer | What it does |
+|---|---|
+| `src/three/Scene.jsx` | The 3D world. The camera never moves; parallax is applied to the background group instead, so world coordinates map predictably to the screen. |
+| `src/three/Ghost.jsx` | The ghost. He wanders a lane around the edge of the window, computed from the real content column so he is never over the text. He does not follow the cursor; he moves at a capped speed with pauses. |
+| `src/ui/NameSwarm.jsx` | The name in particles. In the hero they hold the letterforms; past it they unravel onto the cursor's trail. |
+| `src/lib/pointer.js` | One shared pointer store, read inside `useFrame` so moving the mouse never re-renders React. |
 
-## ✨ Features
+## The ghost's moods
 
-- **3D Animated Laptop** — built using **React Three Fiber**, allowing users to control rotation and interaction.
-- **Responsive Design** — optimized for desktop, tablet, and mobile devices.
-- **Modern UI** — styled with Tailwind CSS for a clean and consistent look.
-- **Projects Showcase** — highlights selected projects with descriptions, tags, and live/demo links.
-- **Experience Section** — displays professional roles and achievements.
-- **Skills Grid** — quick view of my technical skill set.
-- **Contact Section** — easy ways to connect via email and social platforms.
+He ships with three animation clips and they map onto his state:
 
----
+- **Idle** — roaming or drifting
+- **Wave** — you are near his lane and moving gently
+- **Scared** — you swatted him. He drains of colour, backs off to the far end
+  of the lane and turns his back until he has forgiven it.
 
-## 🛠️ Tech Stack
+A hit locks out the "pleased" state for 1.2s, so the speech bubble and the
+animation can never disagree.
 
-- **Frontend Framework**: [React.js](https://react.dev/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **3D Rendering**: [React Three Fiber](https://docs.pmnd.rs/react-three-fiber/getting-started/introduction)
-- **Icons**: [React Icons](https://react-icons.github.io/react-icons/)
-- **Deployment**: GitHub Pages
+## Two things that will bite you
 
----
+**Never `scene.clone()` a skinned mesh.** The clone keeps the *original*
+skeleton, and a skinned mesh renders from its bone matrices, so the clone
+ignores its own transform and draws at the origin. `Ghost.jsx` uses the loaded
+scene directly. If you ever need two ghosts, use `SkeletonUtils.clone()`.
 
-## 📁 Folder Structure
+**Keep the camera still.** The ghost's lane is computed in world units from
+`viewport`. If the camera moves or rotates, those coordinates stop matching the
+screen. Parallax belongs on the background group, not the camera.
 
-```
-PORTFOLIO-WEBSITE/
-├── public/
-│   ├── favicon.png
-│   ├── mac-draco.glb
-│   └── screenshot/
-│       └── screenshot.png
-│
-├── src/
-│   ├── assets/
-│   ├── components/
-│   │   ├── About.jsx
-│   │   ├── Contact.jsx
-│   │   ├── Footer.jsx
-│   │   ├── Hero.jsx
-│   │   ├── Laptop.jsx
-│   │   ├── Navigation.jsx
-│   │   ├── ProjectCard.jsx
-│   │   ├── Projects.jsx
-│   │   └── WorkExperience.jsx
-│   ├── App.css
-│   ├── App.jsx
-│   ├── index.css
-│   └── main.jsx
-│
-├── .gitignore
-├── eslint.config.js
-├── index.html
-├── package-lock.json
-├── package.json
-├── postcss.config.cjs
-└── README.md
+## Fonts
+
+Stand-ins are in place. The real pairing is **Boogy Brut Poster** (Bureau Brut)
+over **Saans** (Displaay), both commercial. Buy the webfont licences, put the
+`.woff2` files in `public/fonts`, add `@font-face` rules, then change two lines
+at the top of `src/styles.css`:
+
+```css
+--f-display: 'Boogy Brut Poster', ...;   /* now Bricolage Grotesque */
+--f-text:    'Saans', ...;               /* now Instrument Sans */
 ```
 
-## 🚀 Getting Started
+Nothing else in the project names a typeface.
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>
-```
+## Model credit — required, do not remove
 
-### 2. Install Dependencies
+The ghost is **Cute Ghost by Arsyuta777, CC BY 4.0**, from Sketchfab. The
+credit line in the contact section is a licence condition.
+
+## Running it
+
 ```bash
 npm install
-```
-
-### 3. Run Development Server
-```bash
-npm run dev
-```
-Open `http://localhost:5173` in your browser.
-
-### 4. Build for Production
-```bash
+npm run dev        # http://localhost:5173
 npm run build
+npm run preview
+npm run deploy     # builds, then publishes dist/ to GitHub Pages
 ```
 
----
-
-## 🌐 Deployment
-
-This portfolio is deployed using **GitHub Pages**.
-
-To deploy:
-
-For GitHub Pages with Vite:
-```bash
-npm install gh-pages --save-dev
-```
-Update `package.json`:
-```json
-"homepage": "https://yourusername.github.io/portfolio-website",
-"scripts": {
-  "predeploy": "npm run build",
-  "deploy": "gh-pages -d dist"
-}
-```
-Then run:
-```bash
-npm run deploy
-```
-Your site will be live at:
-```
-https://<your-username>.github.io
-```
-
----
-
-## 📸 Preview
-
-![Portfolio Screenshot](./screenshot/screenshot.png)
-
----
-
-## 📬 Contact
-
-- **Email**: [neetikurulkar@gmail.com](mailto:neetikurulkar@gmail.com)
-- **LinkedIn**: [linkedin.com/in/neetikurulkar](https://linkedin.com/in/neetikurulkar)
-- **GitHub**: [github.com/neetikurulkar](https://github.com/neetikurulkar)
-
----
-
+All copy lives in `src/content.js`.
