@@ -203,11 +203,11 @@ export const achievements = [
 export const greetings = ['hi!', 'oh, hi!', 'hello!', 'boo! hi']
 
 export const sectionLines = {
-  background: ['it\'s two degrees out here', 'she has been busy'],
-  projects: ['this is the good bit', 'ooh, the projects', 'she will want you to read these'],
-  skills: ['a lot of acronyms down here', 'she speaks four languages, by the way'],
-  achievements: ['she won things', 'first place!'],
-  contact: ['go on, say hello', 'she does reply'],
+  background: ['she\'s been to school a lot', 'two degrees and counting', 'she built a 3d assistant once', 'she has been busy'],
+  projects: ['the bank one is my favourite', 'click one, they open up', 'she made a game too!', 'pick one, any one'],
+  skills: ['she knows things', 'the toolbox', 'python, mostly'],
+  achievements: ['the shiny bit', 'trophy shelf', 'she won things'],
+  contact: ['don\'t be shy', 'she\'s nicer than me', 'bye for now? ...or say hi'],
 }
 
 // CC BY 4.0 makes this credit a licence condition, not a courtesy.
