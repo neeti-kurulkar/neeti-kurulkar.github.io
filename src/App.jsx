@@ -3,7 +3,7 @@ import Scene from './three/Scene'
 import NameSwarm from './ui/NameSwarm'
 import { Hero, Background, Projects, Skills, Achievements, Contact, ProjectSheet } from './ui/Sections'
 import { attachPointer, pointer, telemetry } from './lib/pointer'
-import { sectionLines } from './content'
+import { sectionLines, greetings } from './content'
 
 const MOODS = { Idle: 'calm', Wave: 'pleased', Scared: 'rattled' }
 
@@ -39,6 +39,20 @@ export default function App() {
   const readout = useRef({})
 
   useEffect(() => attachPointer(), [])
+
+  /* Say hi on every load. Wait until the ghost has actually been placed on
+     screen (the model loads async), then give him a beat to settle in. */
+  useEffect(() => {
+    let t = 0
+    const poll = window.setInterval(() => {
+      if (telemetry.ghostSX <= -999) return
+      window.clearInterval(poll)
+      t = window.setTimeout(() => {
+        say({ text: greetings[(Math.random() * greetings.length) | 0], hurt: false }, { prio: 3, ms: 2200 })
+      }, 700)
+    }, 100)
+    return () => { window.clearInterval(poll); window.clearTimeout(t) }
+  }, [say])
 
   /* Say a line as each section arrives, once per visit.
 

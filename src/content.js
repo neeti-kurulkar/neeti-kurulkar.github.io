@@ -199,6 +199,9 @@ export const achievements = [
 
 /* What the ghost says as each section arrives. One line per visit; he keeps
    quiet if he is already saying something or sulking. Rewrite freely. */
+// said once on every load, as soon as the ghost appears
+export const greetings = ['hi!', 'oh, hi!', 'hello!', 'boo! hi']
+
 export const sectionLines = {
   background: ['it\'s two degrees out here', 'she has been busy'],
   projects: ['this is the good bit', 'ooh, the projects', 'she will want you to read these'],
