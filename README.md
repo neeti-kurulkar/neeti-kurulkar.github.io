@@ -1,58 +1,49 @@
 # neeti-kurulkar.github.io
 
-A single-page portfolio built on React Three Fiber. One fixed 3D scene behind
-the page, a 2D particle canvas over it, and the content on top.
+My portfolio. One page, one fixed 3D scene behind it, and a ghost who lives in
+the margins.
 
-## What is moving
+**[neeti-kurulkar.github.io](https://neeti-kurulkar.github.io/)**
 
-| Layer | What it does |
+![The hero: my name drawn in particles against a starfield, with the ghost waving from the left margin](docs/hero.png)
+
+## What it does
+
+**The name is particles.** A 2D canvas samples the letterforms and holds a few
+thousand points in that shape. Drag the cursor through it and they shove apart
+and bruise darker; let go and they heal. Scroll past the hero and the letters
+come apart and drift outward into the starfield, where they keep moving slowly
+for the rest of the page.
+
+**The ghost has moods.** He hovers in whichever gutter he is on, drifting up
+and down, and crosses to the other side now and then. He is not following you.
+He reacts, though:
+
+| | |
 |---|---|
-| `src/three/Scene.jsx` | The 3D world. The camera never moves; parallax is applied to the background group instead, so world coordinates map predictably to the screen. |
-| `src/three/Ghost.jsx` | The ghost. He hovers in one of the gutters beside the content column, drifting slowly up and down, and roughly every 30 seconds floats across to the other side, behind the cards. He does not follow the cursor. |
-| `src/ui/NameSwarm.jsx` | The name in particles. In the hero they hold the letterforms; past it they unravel onto the cursor's trail. |
-| `src/lib/pointer.js` | One shared pointer store, read inside `useFrame` so moving the mouse never re-renders React. |
+| **Idle** | hovering, or crossing over |
+| **Wave** | you are near him and moving gently, and he says hello |
+| **Scared** | you swatted him. He drains of colour, bolts for the readout box, hides behind it for five seconds and will not be poked again until he comes back out |
 
-## The ghost's moods
+He also says something as each section arrives, and comes over to the panel
+when you open a project.
 
-He ships with three animation clips and they map onto his state:
+**It is a resume underneath all that.** Education and internships, projects
+with their real figures on the face of each card, skills, achievements,
+contact. Every project opens as a deep link (`/#project/injection`), so the URL
+is shareable and the back button works without the 3D scene ever restarting.
 
-- **Idle** — hovering or drifting across
-- **Wave** — you are near his lane and moving gently
-- **Scared** — you swatted him. He drains of colour, backs off to the far end
-  of the lane and turns his back until he has forgiven it.
+## On a phone
 
-A hit locks out the "pleased" state for 1.2s, so the speech bubble and the
-animation can never disagree.
+The ghost, the swarm, the readout and the card tilt all assume a cursor and a
+desktop GPU, so none of them are mounted on a small or touch screen. What
+remains is the starfield and the cards. The `h1` stops being screen-reader-only
+and is set properly, since nothing is drawing the name any more.
 
-## Two things that will bite you
+## Stack
 
-**Never `scene.clone()` a skinned mesh.** The clone keeps the *original*
-skeleton, and a skinned mesh renders from its bone matrices, so the clone
-ignores its own transform and draws at the origin. `Ghost.jsx` uses the loaded
-scene directly. If you ever need two ghosts, use `SkeletonUtils.clone()`.
-
-**Keep the camera still.** The ghost's lane is computed in world units from
-`viewport`. If the camera moves or rotates, those coordinates stop matching the
-screen. Parallax belongs on the background group, not the camera.
-
-## Fonts
-
-Stand-ins are in place. The real pairing is **Boogy Brut Poster** (Bureau Brut)
-over **Saans** (Displaay), both commercial. Buy the webfont licences, put the
-`.woff2` files in `public/fonts`, add `@font-face` rules, then change two lines
-at the top of `src/styles.css`:
-
-```css
---f-display: 'Boogy Brut Poster', ...;   /* now Bricolage Grotesque */
---f-text:    'Saans', ...;               /* now Instrument Sans */
-```
-
-Nothing else in the project names a typeface.
-
-## Model credit — required, do not remove
-
-The ghost is **Cute Ghost by Arsyuta777, CC BY 4.0**, from Sketchfab. The
-credit line in the contact section is a licence condition.
+React 19 · Vite 7 · three.js via React Three Fiber · plain CSS. No UI framework.
+One 148 KB model; the starfield and sparkles are generated.
 
 ## Running it
 
@@ -63,8 +54,49 @@ npm run build
 npm run preview
 ```
 
-Deploys are automatic: every push to `main` runs
-`.github/workflows/deploy.yml`, which builds and publishes `dist/` to GitHub
-Pages. In the repo settings, Pages → Source must be set to **GitHub Actions**.
+Every push to `main` runs `.github/workflows/deploy.yml`, which builds and
+publishes to GitHub Pages. Pages → Source must be set to **GitHub Actions**.
 
-All copy lives in `src/content.js`.
+## Where things live
+
+| I want to change… | File |
+|---|---|
+| Any text, project, job, award | `src/content.js` — the single source of truth |
+| Colours, type, spacing | the `:root` block in `src/styles.css` |
+| The 3D scene, stars, camera | `src/three/Scene.jsx` |
+| The ghost: lane, moods, lines | `src/three/Ghost.jsx` |
+| The name swarm | `src/ui/NameSwarm.jsx` |
+| What he says per section | `sectionLines` in `src/content.js` |
+| What counts as a phone | `src/lib/useIsPhone.js` |
+
+## Two things that will bite you
+
+**Never `scene.clone()` a skinned mesh.** The clone keeps the *original*
+skeleton, and a skinned mesh renders from its bone matrices, so the clone
+ignores its own transform and draws at the origin. `Ghost.jsx` uses the loaded
+scene directly. For a second ghost, use `SkeletonUtils.clone()`.
+
+**Keep the camera still.** The ghost's lane is computed in world units from
+`viewport`. If the camera moves or rotates, those coordinates stop matching the
+screen and he ends up somewhere else entirely. Parallax belongs on the
+background group, not the camera.
+
+## Fonts
+
+Stand-ins are in place. The intended pairing is **Boogy Brut Poster** (Bureau
+Brut) over **Saans** (Displaay), both commercial. Buy the webfont licences, put
+the `.woff2` files in `public/fonts`, add `@font-face` rules, then change two
+lines at the top of `src/styles.css`:
+
+```css
+--f-display: 'Boogy Brut Poster', …;   /* currently Bricolage Grotesque */
+--f-text:    'Saans', …;               /* currently Instrument Sans */
+```
+
+Nothing else in the project names a typeface.
+
+## Credit — required, do not remove
+
+The ghost is **[Cute Ghost](https://sketchfab.com/3d-models/cute-ghost-animated-idle-wave-scared-e50bb17a19d849c590bac5d66779a6c9)
+by Arsyuta777**, CC BY 4.0, via Sketchfab. The credit line in the contact
+section is a licence condition, not a courtesy.
