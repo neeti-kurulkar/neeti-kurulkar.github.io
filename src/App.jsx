@@ -152,7 +152,10 @@ export default function App() {
       }
 
       if (bubbleRef.current) {
-        bubbleRef.current.style.left = `${telemetry.ghostSX}px`
+        // keep the whole bubble on screen when he is close to an edge
+        const half = bubbleRef.current.offsetWidth / 2
+        const bx = Math.max(half + 8, Math.min(window.innerWidth - half - 8, telemetry.ghostSX))
+        bubbleRef.current.style.left = `${bx}px`
         bubbleRef.current.style.top = `${telemetry.ghostSY}px`
       }
 

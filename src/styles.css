@@ -347,6 +347,14 @@ a { color: inherit; }
 }
 .sheet__body .readings { margin-bottom: 22px; }
 .sheet__p { color: var(--muted); margin-bottom: 16px; }
+.chips {
+  list-style: none; margin: 14px 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.chips li {
+  font-size: 0.875rem; color: var(--b5); line-height: 1;
+  padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px;
+}
 .sheet__p + .chips { margin-bottom: 18px; }
 .sheet__close {
   position: absolute; top: 12px; right: 14px;
