@@ -179,7 +179,7 @@ export const archive = [
 
 export const skills = [
   { group: 'Languages', items: 'Python · JavaScript · Java · SQL · C++' },
-  { group: 'Frameworks', items: 'React · Node · FastAPI · LangChain · LangGraph · Autogen · PyTorch · scikit-learn · pandas' },
+  { group: 'Frameworks', items: 'React · Node · FastAPI · LangChain · LangGraph · Autogen · PyTorch · TensorFlow · scikit-learn · pandas · Matplotlib · Pydantic' },
   { group: 'Data', items: 'PostgreSQL · MongoDB · SQLite · ChromaDB' },
   { group: 'Platforms', items: 'Git · AWS · Azure · IBM Cloud · Databricks · Docker · Kubernetes' },
 ]

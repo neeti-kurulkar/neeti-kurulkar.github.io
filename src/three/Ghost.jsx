@@ -16,7 +16,7 @@ const EXPLAIN = ['this one’s good', 'read this bit', 'she likes this one', 'oo
 
 const HOVER_SPEED = 0.22 // world units per second while hovering up and down
 const CROSS_SPEED = 1.3 // when he drifts over to the other side
-const FLEE_SPEED = 3.2 // when he has been poked too hard
+const FLEE_SPEED = 11 // when he has been poked too hard: he bolts
 const CROSS_EVERY = 30 // seconds, roughly, between crossings
 
 export default function Ghost({ onSay, explaining }) {
@@ -210,10 +210,15 @@ export default function Ghost({ onSay, explaining }) {
     // ease toward the target with a soft speed cap, so he glides rather than darts
     const gx = tx - s.x
     const gy = ty - s.y
-    const wantX = Math.abs(gx) < 0.02 ? 0 : Math.sign(gx) * Math.min(speed, Math.abs(gx) * 0.8)
-    const yCap = speed === HOVER_SPEED ? HOVER_SPEED : Math.max(HOVER_SPEED, speed * 0.6)
-    const wantY = Math.abs(gy) < 0.02 ? 0 : Math.sign(gy) * Math.min(yCap, Math.abs(gy) * 0.6)
-    const k = Math.min(1, d * 1.4)
+    // when he bolts he skips the gentle easing: snaps up to speed and only
+    // brakes right at the end
+    const fleeing = speed === FLEE_SPEED
+    const gainX = fleeing ? 4 : 0.8
+    const gainY = fleeing ? 4 : 0.6
+    const wantX = Math.abs(gx) < 0.02 ? 0 : Math.sign(gx) * Math.min(speed, Math.abs(gx) * gainX)
+    const yCap = speed === HOVER_SPEED ? HOVER_SPEED : fleeing ? speed : Math.max(HOVER_SPEED, speed * 0.6)
+    const wantY = Math.abs(gy) < 0.02 ? 0 : Math.sign(gy) * Math.min(yCap, Math.abs(gy) * gainY)
+    const k = Math.min(1, d * (fleeing ? 9 : 1.4))
     s.vx += (wantX - s.vx) * k
     s.vy += (wantY - s.vy) * k
     s.x += s.vx * d
