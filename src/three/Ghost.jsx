@@ -224,10 +224,18 @@ export default function Ghost({ onSay, explaining }) {
     // brakes right at the end
     const fleeing = speed === FLEE_SPEED
     const gainX = fleeing ? 4 : 0.8
-    const gainY = fleeing ? 4 : speed === ESCAPE_SPEED ? 2 : 0.6
-    const wantX = Math.abs(gx) < 0.02 ? 0 : Math.sign(gx) * Math.min(speed, Math.abs(gx) * gainX)
+    const gainY = fleeing ? 4 : speed === ESCAPE_SPEED ? 2 : 0.6 // ignored when fleeing
+    let wantX = Math.abs(gx) < 0.02 ? 0 : Math.sign(gx) * Math.min(speed, Math.abs(gx) * gainX)
     const yCap = speed === HOVER_SPEED ? HOVER_SPEED : fleeing || speed === ESCAPE_SPEED ? speed : Math.max(HOVER_SPEED, speed * 0.6)
-    const wantY = Math.abs(gy) < 0.02 ? 0 : Math.sign(gy) * Math.min(yCap, Math.abs(gy) * gainY)
+    let wantY = Math.abs(gy) < 0.02 ? 0 : Math.sign(gy) * Math.min(yCap, Math.abs(gy) * gainY)
+    if (fleeing) {
+      // a bolt is a straight line: one speed along the direct path to the box,
+      // not separate x and y speeds (which made him run in an L)
+      const dist = Math.hypot(gx, gy)
+      const v = dist < 0.02 ? 0 : Math.min(speed, dist * gainX)
+      wantX = dist < 0.02 ? 0 : (gx / dist) * v
+      wantY = dist < 0.02 ? 0 : (gy / dist) * v
+    }
     const k = Math.min(1, d * (fleeing ? 9 : 1.4))
     s.vx += (wantX - s.vx) * k
     s.vy += (wantY - s.vy) * k
