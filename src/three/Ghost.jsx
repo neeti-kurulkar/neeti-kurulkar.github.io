@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import * as THREE from 'three'
 import { pointer, telemetry } from '../lib/pointer'
+import { pokeLines } from '../content'
 
 /* Arsyuta777's ghost, CC BY 4.0.
 
@@ -10,12 +11,12 @@ import { pointer, telemetry } from '../lib/pointer'
    up and down. Every half minute or so he floats across to the other side,
    behind the cards. He does not chase the cursor. You can still poke him. */
 
-const HURT = ['ouch!', 'hey!', 'ow.', 'rude.', 'eek!']
 const GLAD = ['boo', 'hi!', '♪', 'hehe']
 const EXPLAIN = ['this one’s good', 'read this bit', 'she likes this one', 'ooh, this one']
 
 const HOVER_SPEED = 0.22 // world units per second while hovering up and down
 const CROSS_SPEED = 1.3 // when he drifts over to the other side
+const ESCAPE_SPEED = 2.6 // rising back out from behind the readout box
 const FLEE_SPEED = 11 // when he has been poked too hard: he bolts
 const CROSS_EVERY = 30 // seconds, roughly, between crossings
 
@@ -205,6 +206,15 @@ export default function Ghost({ onSay, explaining }) {
       if (s.box && tx > s.x && s.y < clearY - 0.05) {
         tx = Math.min(tx, s.box.left - 0.9)
       }
+
+      /* The box is only for hiding. If he is ever behind it when he is not
+         sulking (coming back out after a hide, or the window was resized),
+         he rises straight up out of it, briskly, instead of hovering there. */
+      if (s.box && s.x > s.box.left - 0.9 && s.y < clearY - 0.05) {
+        ty = Math.max(ty, clearY + 0.3)
+        s.yT = Math.max(s.yT, ty)
+        speed = ESCAPE_SPEED
+      }
     }
 
     // ease toward the target with a soft speed cap, so he glides rather than darts
@@ -214,9 +224,9 @@ export default function Ghost({ onSay, explaining }) {
     // brakes right at the end
     const fleeing = speed === FLEE_SPEED
     const gainX = fleeing ? 4 : 0.8
-    const gainY = fleeing ? 4 : 0.6
+    const gainY = fleeing ? 4 : speed === ESCAPE_SPEED ? 2 : 0.6
     const wantX = Math.abs(gx) < 0.02 ? 0 : Math.sign(gx) * Math.min(speed, Math.abs(gx) * gainX)
-    const yCap = speed === HOVER_SPEED ? HOVER_SPEED : fleeing ? speed : Math.max(HOVER_SPEED, speed * 0.6)
+    const yCap = speed === HOVER_SPEED ? HOVER_SPEED : fleeing || speed === ESCAPE_SPEED ? speed : Math.max(HOVER_SPEED, speed * 0.6)
     const wantY = Math.abs(gy) < 0.02 ? 0 : Math.sign(gy) * Math.min(yCap, Math.abs(gy) * gainY)
     const k = Math.min(1, d * (fleeing ? 9 : 1.4))
     s.vx += (wantX - s.vx) * k
@@ -244,10 +254,9 @@ export default function Ghost({ onSay, explaining }) {
       s.stress = Math.min(1.8, s.stress + 0.56 + Math.min(0.6, pointer.speed / 70))
       s.hitT = 1.2
       if (s.stress > 0.6) { s.fleeing = true; s.hidDone = false }
-      if (s.bubble <= 0) {
-        s.bubble = 1.5
-        onSay?.({ text: HURT[(Math.random() * HURT.length) | 0], hurt: true })
-      }
+      // a poke always gets a reaction, even over a hello he was mid-way through
+      s.bubble = 1.5
+      onSay?.({ text: pokeLines[(Math.random() * pokeLines.length) | 0], hurt: true })
     }
     if (!explaining) s.explained = false
     if (!s.fleeing) s.stress = Math.max(0, s.stress - d * 0.2)

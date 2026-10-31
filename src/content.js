@@ -199,6 +199,9 @@ export const achievements = [
 
 /* What the ghost says as each section arrives. One line per visit; he keeps
    quiet if he is already saying something or sulking. Rewrite freely. */
+// what he says when you poke him
+export const pokeLines = ['rude!', 'hey!', 'that\'s not nice!', 'ouch!', 'stop that!', 'eek!', 'ow!']
+
 // said once on every load, as soon as the ghost appears
 export const greetings = ['hi!', 'oh, hi!', 'hello!', 'boo! hi']
 

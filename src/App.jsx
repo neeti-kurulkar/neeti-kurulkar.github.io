@@ -30,7 +30,7 @@ export default function App() {
 
   const ghostSay = useCallback(
     (payload) => {
-      if (payload) say(payload, { prio: 2, ms: payload.hurt ? 1700 : 1300 })
+      if (payload) say(payload, { prio: payload.hurt ? 4 : 2, ms: payload.hurt ? 1700 : 1300 })
     },
     [say],
   )
