@@ -3,16 +3,68 @@ import Scene from './three/Scene'
 import NameSwarm from './ui/NameSwarm'
 import { Hero, Background, Projects, Skills, Achievements, Contact, ProjectSheet } from './ui/Sections'
 import { attachPointer, pointer, telemetry } from './lib/pointer'
+import { sectionLines } from './content'
 
 const MOODS = { Idle: 'calm', Wave: 'pleased', Scared: 'rattled' }
 
 export default function App() {
   const [bubble, setBubble] = useState(null)
+  const bubbleUntil = useRef(0)
+  const bubblePrio = useRef(0)
+
+  /* One bubble at a time, with a priority so the ghost's own reactions
+     outrank the section lines, and a newer section line replaces an older
+     one instead of waiting behind it. */
+  const say = useCallback((payload, { prio = 1, ms = 1600 } = {}) => {
+    const now = performance.now()
+    if (now < bubbleUntil.current && prio < bubblePrio.current) return
+    bubbleUntil.current = now + ms
+    bubblePrio.current = prio
+    setBubble(payload)
+    window.clearTimeout(say._t)
+    say._t = window.setTimeout(() => {
+      setBubble(null)
+      bubblePrio.current = 0
+    }, ms)
+  }, [])
+
+  const ghostSay = useCallback(
+    (payload) => {
+      if (payload) say(payload, { prio: 2, ms: payload.hurt ? 1700 : 1300 })
+    },
+    [say],
+  )
   const [open, setOpen] = useState(null)
   const bubbleRef = useRef(null)
   const readout = useRef({})
 
   useEffect(() => attachPointer(), [])
+
+  /* say a line as each section arrives, once per visit */
+  useEffect(() => {
+    const seen = new Set()
+    const ratio = new Map()
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) ratio.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0)
+        // only the section actually filling the screen gets to speak
+        let best = null
+        let bestR = 0.55
+        for (const [id, r] of ratio) {
+          if (sectionLines[id] && r > bestR) { bestR = r; best = id }
+        }
+        for (const id of [...seen]) if ((ratio.get(id) || 0) < 0.3) seen.delete(id)
+        if (best && !seen.has(best)) {
+          seen.add(best)
+          const lines = sectionLines[best]
+          say({ text: lines[(Math.random() * lines.length) | 0], hurt: false }, { prio: 1, ms: 2600 })
+        }
+      },
+      { threshold: [0, 0.3, 0.55, 0.8, 1] },
+    )
+    document.querySelectorAll('section.station[id]').forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [say])
 
   // deep links: /#project/finsql
   useEffect(() => {
@@ -80,7 +132,7 @@ export default function App() {
 
   return (
     <>
-      <Scene onGhostSay={setBubble} explaining={!!open} />
+      <Scene onGhostSay={ghostSay} explaining={!!open} />
       <NameSwarm />
 
       <main className="page">

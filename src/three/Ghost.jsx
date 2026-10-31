@@ -140,6 +140,21 @@ export default function Ghost({ onSay, explaining }) {
     if (s.hideTick <= 0) { s.hideTick = 0.5; s.hideS = hideAt() }
     const AVOID = lane.total * 0.085
 
+    /* He may travel the whole lane, but he only ever stops at the ends: the
+       two side lanes and the corners of the bottom. The middle of the bottom
+       run sits under the content column, and he gets lost behind it there. */
+    const endOfBottom = lane.B * 0.16
+    const restA = lane.L + endOfBottom            // end of the left-hand zone
+    let restB = lane.L + lane.B - endOfBottom     // start of the right-hand zone
+    /* The readout box sits at the bottom right, exactly where the right-hand
+       zone begins. Without this he parks beside it, gets moved on for being
+       behind it, gets snapped back to the start of the zone, and loops for
+       ever. Begin the zone above the box instead. */
+    if (s.hideS != null) {
+      restB = Math.min(lane.total - 0.1, Math.max(restB, s.hideS + AVOID * 1.5))
+    }
+    const parkable = (v) => v <= restA || v >= restB
+
     const cwx = (pointer.nx * viewport.width) / 2
     const cwy = (pointer.ny * viewport.height) / 2
     at(s.s, tmp)
@@ -173,7 +188,7 @@ export default function Ghost({ onSay, explaining }) {
           s.fleeing = false
           s.stress = 0
           // step back out from behind the box
-          s.targetS = Math.max(0, Math.min(lane.total, s.s - AVOID * 2.6))
+          s.targetS = Math.max(0, Math.min(restA, restA * (0.3 + Math.random() * 0.6)))
         }
       }
     } else if (s.pause > 0) {
@@ -184,23 +199,34 @@ export default function Ghost({ onSay, explaining }) {
       if (s.roam <= 0) {
         s.roam = 3.2 + Math.random() * 4.5
         // a short hop along the lane, never a dash across the window
-        // a short hop, and never one that parks him behind the box
+        // somewhere at one of the ends, never behind the box
         let t = s.s
-        for (let i = 0; i < 6; i++) {
-          const span = lane.total * (0.1 + Math.random() * 0.22)
-          t = Math.max(0, Math.min(lane.total, s.s + (Math.random() < 0.5 ? -span : span)))
+        for (let i = 0; i < 12; i++) {
+          t = Math.random() < 0.5
+            ? Math.random() * restA                       // left lane and its corner
+            : restB + Math.random() * (lane.total - restB) // right lane and its corner
           if (s.hideS == null || Math.abs(t - s.hideS) > AVOID) break
         }
         s.targetS = t
-        if (Math.random() < 0.3) s.pause = 1.4 + Math.random() * 2.6
+        if (Math.random() < 0.35) s.pause = 1.4 + Math.random() * 2.6
       }
     }
 
-    // if he has ended up behind the box while calm, send him back out
-    if (s.stress <= 0.6 && !explaining && s.hideS != null && Math.abs(s.s - s.hideS) < AVOID * 0.8) {
-      s.targetS = s.hideS + (s.s < s.hideS ? -AVOID * 1.8 : AVOID * 1.8)
-      s.targetS = Math.max(0, Math.min(lane.total, s.targetS))
-      s.pause = 0
+    // never let him settle in the middle, or behind the box
+    if (!s.fleeing && !explaining) {
+      const stuckBehindBox = s.hideS != null && Math.abs(s.s - s.hideS) < AVOID * 0.8
+      const stuckInMiddle = !parkable(s.s) && Math.abs(s.vs) < 0.35
+      if (stuckBehindBox) {
+        s.targetS = Math.max(0, Math.min(lane.total, s.hideS + (s.s < s.hideS ? -AVOID * 1.8 : AVOID * 1.8)))
+        s.pause = 0
+      } else if (stuckInMiddle) {
+        // carry on to whichever end he was already closer to
+        s.targetS = s.s < (restA + restB) / 2 ? restA * 0.7 : restB + (lane.total - restB) * 0.3
+        s.pause = 0
+      }
+      // and he does not pause mid-crossing
+      if (!parkable(s.targetS)) s.targetS = s.targetS < (restA + restB) / 2 ? restA : restB
+      if (!parkable(s.s)) s.pause = 0
     }
 
     // ease toward the target, but never faster than MAX_SPEED
@@ -234,10 +260,7 @@ export default function Ghost({ onSay, explaining }) {
     }
     if (!explaining) s.explained = false
     if (!s.fleeing) s.stress = Math.max(0, s.stress - d * 0.2)
-    if (s.bubble > 0) {
-      s.bubble -= d
-      if (s.bubble <= 0) onSay?.(null)
-    }
+    if (s.bubble > 0) s.bubble -= d
 
     // a recent hit always wins, so the bubble and the face never disagree
     let mood

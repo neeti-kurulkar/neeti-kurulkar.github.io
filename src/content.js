@@ -39,7 +39,7 @@ export const internships = [
   },
   {
     role: 'Software Developer Intern',
-    company: 'Plural Technology',
+    company: 'Plural Technology Pvt. Ltd.',
     period: '2024 — 2025',
     detail: 'Pune',
     points: [
@@ -70,25 +70,6 @@ export const projects = [
     stack: ['Python', 'Ollama', 'SQLite', 'BM25'],
     demo: { label: 'Open the dashboard', href: 'https://neeti-kurulkar.github.io/bot-injection-eval/' },
     code: 'https://github.com/neeti-kurulkar/bot-injection-eval',
-  },
-  {
-    id: 'finsql',
-    name: 'Text-to-SQL financial analytics',
-    year: '2026',
-    tags: ['Agents', 'Data platform'],
-    readings: [
-      { k: 'agents in the pipeline', v: '6' },
-      { k: 'tenancy', v: 'multi-org, RBAC' },
-      { k: 'retrieval', v: 'ChromaDB few-shot' },
-      { k: 'charts', v: 'chosen by the data' },
-    ],
-    blurb:
-      'A multi-tenant platform that lets business users ask financial questions in plain English, answered by a six-agent LangGraph pipeline.',
-    detail:
-      'The agents handle intent, schema navigation, SQL generation, validation, insight and visualisation in turn. Retrieval-augmented generation pulls few-shot examples from ChromaDB by semantic similarity. Organisations are isolated from each other with role-based access behind JWT, and the React front end renders whichever chart the data actually warrants rather than a fixed dashboard.',
-    stack: ['LangGraph', 'FastAPI', 'PostgreSQL', 'React', 'ChromaDB'],
-    demo: { label: 'Open finq', href: 'https://finq.web.app/' },
-    code: 'https://github.com/neeti-kurulkar/be-project-text-to-sql',
   },
   {
     id: 'sentiment',
@@ -127,6 +108,25 @@ export const projects = [
     stack: ['JavaScript', 'GSAP', 'SVG', 'Playwright'],
     demo: { label: 'Play it', href: 'https://neeti-kurulkar.github.io/choose-your-chaos/' },
     code: 'https://github.com/neeti-kurulkar/choose-your-chaos',
+  },
+  {
+    id: 'finsql',
+    name: 'Text-to-SQL financial analytics',
+    year: '2026',
+    tags: ['Agents', 'Data platform'],
+    readings: [
+      { k: 'agents in the pipeline', v: '6' },
+      { k: 'tenancy', v: 'multi-org, RBAC' },
+      { k: 'retrieval', v: 'ChromaDB few-shot' },
+      { k: 'charts', v: 'chosen by the data' },
+    ],
+    blurb:
+      'A multi-tenant platform that lets business users ask financial questions in plain English, answered by a six-agent LangGraph pipeline.',
+    detail:
+      'The agents handle intent, schema navigation, SQL generation, validation, insight and visualisation in turn. Retrieval-augmented generation pulls few-shot examples from ChromaDB by semantic similarity. Organisations are isolated from each other with role-based access behind JWT, and the React front end renders whichever chart the data actually warrants rather than a fixed dashboard.',
+    stack: ['LangGraph', 'FastAPI', 'PostgreSQL', 'React', 'ChromaDB'],
+    demo: { label: 'Open finq', href: 'https://finq.web.app/' },
+    code: 'https://github.com/neeti-kurulkar/be-project-text-to-sql',
   },
 ]
 
@@ -196,6 +196,16 @@ export const achievements = [
   { name: 'IBM SkillsBuild Hackathon 2025', place: 'Top 10', of: 'of 70+ entries, state level' },
   { name: 'Smart India Hackathon 2024', place: '6th', of: 'of 500+ entries, EdTech' },
 ]
+
+/* What the ghost says as each section arrives. One line per visit; he keeps
+   quiet if he is already saying something or sulking. Rewrite freely. */
+export const sectionLines = {
+  background: ['two degrees, one city', 'she has been busy', 'nine point three, if you were wondering'],
+  projects: ['this is the good bit', 'ooh, the projects', 'she will want you to read these'],
+  skills: ['a lot of acronyms down here', 'she speaks four languages, by the way'],
+  achievements: ['she won things', 'first place, once'],
+  contact: ['go on, say hello', 'she does reply'],
+}
 
 // CC BY 4.0 makes this credit a licence condition, not a courtesy.
 export const credits = [
