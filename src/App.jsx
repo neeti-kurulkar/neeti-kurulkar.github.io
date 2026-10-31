@@ -40,30 +40,56 @@ export default function App() {
 
   useEffect(() => attachPointer(), [])
 
-  /* say a line as each section arrives, once per visit */
+  /* Say a line as each section arrives, once per visit.
+
+     This deliberately does not use intersectionRatio: Projects is taller
+     than the viewport, so its ratio can never reach a sensible threshold and
+     it was the one section that never spoke. Whichever section covers the
+     middle of the screen is the one we are looking at, whatever its height. */
+  const activeSection = useRef(null)
   useEffect(() => {
-    const seen = new Set()
-    const ratio = new Map()
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) ratio.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0)
-        // only the section actually filling the screen gets to speak
-        let best = null
-        let bestR = 0.55
-        for (const [id, r] of ratio) {
-          if (sectionLines[id] && r > bestR) { bestR = r; best = id }
+    let raf = 0
+    let acc = 0
+    let t0 = performance.now()
+    const tick = (now) => {
+      acc += now - t0
+      t0 = now
+      if (acc > 260) {
+        acc = 0
+        const mid = window.innerHeight * 0.45
+        let found = null
+        let nearest = null
+        let nearestD = Infinity
+        for (const el of document.querySelectorAll('section.station[id]')) {
+          const r = el.getBoundingClientRect()
+          if (r.top <= mid && r.bottom >= mid) { found = el.id; break }
+          // the last section cannot reach the midline at the foot of the page,
+          // so fall back to whichever one is closest to it
+          const d = Math.abs((r.top + r.bottom) / 2 - mid)
+          if (r.bottom > 0 && r.top < window.innerHeight && d < nearestD) {
+            nearestD = d
+            nearest = el.id
+          }
         }
-        for (const id of [...seen]) if ((ratio.get(id) || 0) < 0.3) seen.delete(id)
-        if (best && !seen.has(best)) {
-          seen.add(best)
-          const lines = sectionLines[best]
-          say({ text: lines[(Math.random() * lines.length) | 0], hurt: false }, { prio: 1, ms: 2600 })
+        if (!found) found = nearest
+        // at the very foot of the page the last section can never reach the
+        // midline, so hand it the floor outright
+        const atBottom =
+          window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 8
+        if (atBottom) {
+          const all = document.querySelectorAll('section.station[id]')
+          if (all.length) found = all[all.length - 1].id
         }
-      },
-      { threshold: [0, 0.3, 0.55, 0.8, 1] },
-    )
-    document.querySelectorAll('section.station[id]').forEach((el) => io.observe(el))
-    return () => io.disconnect()
+        if (found !== activeSection.current) {
+          activeSection.current = found
+          const lines = found && sectionLines[found]
+          if (lines) say({ text: lines[(Math.random() * lines.length) | 0], hurt: false }, { prio: 1, ms: 2800 })
+        }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
   }, [say])
 
   // deep links: /#project/finsql

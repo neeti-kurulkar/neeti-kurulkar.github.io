@@ -15,7 +15,7 @@ const HURT = ['ouch!', 'hey!', 'ow.', 'rude.', 'eek!']
 const GLAD = ['boo', 'hi!', '♪', 'hehe']
 const EXPLAIN = ['this one’s good', 'read this bit', 'she likes this one', 'ooh, this one']
 
-const MAX_SPEED = 2.4 // world units per second along the lane
+const MAX_SPEED = 3.4 // world units per second along the lane
 
 export default function Ghost({ onSay, explaining }) {
   const url = `${import.meta.env.BASE_URL}models/ghost.glb`
@@ -197,18 +197,21 @@ export default function Ghost({ onSay, explaining }) {
     } else {
       s.roam -= d
       if (s.roam <= 0) {
-        s.roam = 3.2 + Math.random() * 4.5
+        s.roam = 1.6 + Math.random() * 2.6
         // a short hop along the lane, never a dash across the window
         // somewhere at one of the ends, never behind the box
         let t = s.s
         for (let i = 0; i < 12; i++) {
-          t = Math.random() < 0.5
-            ? Math.random() * restA                       // left lane and its corner
+          // usually head for the far end, so he covers the whole frame
+          const nearLeft = s.s < (restA + restB) / 2
+          const goLeft = Math.random() < (nearLeft ? 0.32 : 0.68)
+          t = goLeft
+            ? Math.random() * restA                        // left lane and its corner
             : restB + Math.random() * (lane.total - restB) // right lane and its corner
           if (s.hideS == null || Math.abs(t - s.hideS) > AVOID) break
         }
         s.targetS = t
-        if (Math.random() < 0.35) s.pause = 1.4 + Math.random() * 2.6
+        if (Math.random() < 0.18) s.pause = 1.0 + Math.random() * 1.6
       }
     }
 
