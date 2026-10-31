@@ -200,6 +200,12 @@ a { color: inherit; }
   text-transform: uppercase; color: var(--b4);
 }
 .proj__blurb { font-size: 0.9375rem; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips li {
+  font-family: var(--f-data); font-size: 10px; letter-spacing: 0.06em;
+  border: 1px solid var(--line); padding: 4px 8px; color: var(--muted);
+}
+
 .proj__foot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
 
 .btn {
@@ -362,8 +368,31 @@ a { color: inherit; }
   .twoup { grid-template-columns: 1fr; }
   .arch { grid-template-columns: 3rem 1fr; }
   .arch__links { grid-column: 2; }
-  .readout { display: none; }
   .station { padding-block: 60px; }
+
+  /* No cursor here, so nothing tilts and nothing floats. The ghost, the
+     swarm and the readout are not mounted at all on a phone; these rules
+     are the belt to that braces. */
+  .tilt { transform: none !important; }
+  .readout,
+  .bubble { display: none; }
+
+  /* The hero has to carry its own name, since there is no particle swarm
+     drawing it. */
+  .hero { min-height: auto; padding-block: 84px 48px; }
+  .hero__name {
+    font-family: var(--f-display);
+    font-variation-settings: 'wght' 800, 'wdth' 88;
+    font-size: clamp(2.5rem, 1.4rem + 9vw, 4.2rem);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin-bottom: 20px;
+  }
+  .hero__line { font-size: 1.0625rem; max-width: none; }
+
+  .proj { padding: 20px; }
+  .pgrid { gap: 12px; }
+  .sheet__body { padding: 26px 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

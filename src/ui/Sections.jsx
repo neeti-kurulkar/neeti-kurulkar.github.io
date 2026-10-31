@@ -17,10 +17,13 @@ function Head({ n, title, note }) {
   )
 }
 
-export function Hero() {
+export function Hero({ phone }) {
+  /* On desktop the name is drawn in particles behind the page, so the h1 is
+     there for screen readers only. On a phone there is no swarm, so the h1
+     has to carry it and is set properly. */
   return (
     <section className="station hero" id="top">
-      <h1 className="vh">{person.name}</h1>
+      <h1 className={phone ? 'hero__name' : 'vh'}>{person.name}</h1>
       <p className="hero__line">{person.line}</p>
       <p className="hero__meta">{person.where}</p>
     </section>

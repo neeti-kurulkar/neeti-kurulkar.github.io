@@ -4,10 +4,12 @@ import NameSwarm from './ui/NameSwarm'
 import { Hero, Background, Projects, Skills, Achievements, Contact, ProjectSheet } from './ui/Sections'
 import { attachPointer, pointer, telemetry } from './lib/pointer'
 import { sectionLines, greetings } from './content'
+import { useIsPhone } from './lib/useIsPhone'
 
 const MOODS = { Idle: 'calm', Wave: 'pleased', Scared: 'rattled' }
 
 export default function App() {
+  const phone = useIsPhone()
   const [bubble, setBubble] = useState(null)
   const bubbleUntil = useRef(0)
   const bubblePrio = useRef(0)
@@ -131,6 +133,7 @@ export default function App() {
 
   /* one rAF loop for the DOM: card tilt, the speech bubble, the readout */
   useEffect(() => {
+    if (phone) return // no cursor on a phone: no tilt, no floating bubble, no readout
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let raf = 0
     let acc = 0
@@ -168,15 +171,15 @@ export default function App() {
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [])
+  }, [phone])
 
   return (
     <>
-      <Scene onGhostSay={ghostSay} explaining={!!open} />
-      <NameSwarm />
+      <Scene onGhostSay={ghostSay} explaining={!!open} phone={phone} />
+      {!phone && <NameSwarm />}
 
       <main className="page">
-        <Hero />
+        <Hero phone={phone} />
         <Background />
         <Projects onOpen={openProject} />
         <Skills />
@@ -184,17 +187,21 @@ export default function App() {
         <Contact />
       </main>
 
-      <aside className="readout" aria-hidden="true">
-        <h6>The ghost</h6>
-        <div className="row2"><span>doing</span><i ref={(e) => (readout.current.act = e)}>loading</i></div>
-        <div className="row2"><span>feeling</span><i ref={(e) => (readout.current.clip = e)}>&mdash;</i></div>
-        <div className="row2"><span>patience</span><b><span className="bar"><span ref={(e) => (readout.current.bar = e)} /></span></b></div>
-        <p className="readout__hint">poke him</p>
-      </aside>
+      {!phone && (
+        <>
+          <aside className="readout" aria-hidden="true">
+            <h6>The ghost</h6>
+            <div className="row2"><span>doing</span><i ref={(e) => (readout.current.act = e)}>loading</i></div>
+            <div className="row2"><span>feeling</span><i ref={(e) => (readout.current.clip = e)}>&mdash;</i></div>
+            <div className="row2"><span>patience</span><b><span className="bar"><span ref={(e) => (readout.current.bar = e)} /></span></b></div>
+            <p className="readout__hint">poke him</p>
+          </aside>
 
-      <div ref={bubbleRef} className={`bubble${bubble ? ' on' : ''}${bubble?.hurt ? ' hurt' : ''}`}>
-        {bubble?.text}
-      </div>
+          <div ref={bubbleRef} className={`bubble${bubble ? ' on' : ''}${bubble?.hurt ? ' hurt' : ''}`}>
+            {bubble?.text}
+          </div>
+        </>
+      )}
 
       {open && <ProjectSheet id={open} onClose={closeProject} />}
     </>
