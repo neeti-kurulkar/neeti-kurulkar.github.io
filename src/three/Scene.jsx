@@ -23,12 +23,15 @@ function Parallax({ group }) {
   return null
 }
 
-export default function Scene({ onGhostSay, explaining, phone }) {
+/* light    a phone or a tablet: fewer stars, fewer pixels
+   withGhost everything but a phone, where he has nowhere to stand
+   touch     he is being operated by a finger, not a cursor */
+export default function Scene({ onGhostSay, explaining, light, withGhost, touch }) {
   const bg = useRef()
   return (
     <Canvas
       className="scene"
-      dpr={phone ? [1, 1.4] : [1, 1.7]}
+      dpr={light ? [1, 1.4] : [1, 1.7]}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0, 12], fov: 45, near: 0.1, far: 240 }}
     >
@@ -41,18 +44,19 @@ export default function Scene({ onGhostSay, explaining, phone }) {
 
       {/* everything that drifts lives in here; the camera stays put */}
       <group ref={bg}>
-        <Stars radius={110} depth={70} count={phone ? 1200 : 3000} factor={3.4} saturation={0} fade speed={0.25} />
-        <Sparkles count={phone ? 70 : 160} scale={[34, 20, 14]} position={[0, 0, -9]} size={2.6} speed={0.26} opacity={0.5} color="#9cc4ee" />
-        {!phone && (
+        <Stars radius={110} depth={70} count={light ? 1200 : 3000} factor={3.4} saturation={0} fade speed={0.25} />
+        <Sparkles count={light ? 70 : 160} scale={[34, 20, 14]} position={[0, 0, -9]} size={2.6} speed={0.26} opacity={0.5} color="#9cc4ee" />
+        {!light && (
           <Sparkles count={90} scale={[22, 14, 8]} position={[0, 0, -3]} size={1.7} speed={0.4} opacity={0.35} color="#dce9f8" />
         )}
       </group>
 
-      {/* the ghost is pinned to the viewport, never parallaxed. He wants a
-          cursor and a desktop GPU, so he sits out on phones entirely. */}
-      {!phone && (
+      {/* The ghost is pinned to the viewport, never parallaxed. He needs a
+          gutter to stand in, so he sits out on phones entirely; on a tablet
+          he is there and you poke him with a finger. */}
+      {withGhost && (
         <Suspense fallback={null}>
-          <Ghost onSay={onGhostSay} explaining={explaining} />
+          <Ghost onSay={onGhostSay} explaining={explaining} touch={touch} />
         </Suspense>
       )}
 

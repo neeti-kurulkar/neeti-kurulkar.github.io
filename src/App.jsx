@@ -4,12 +4,13 @@ import NameSwarm from './ui/NameSwarm'
 import { Hero, Background, Projects, Skills, Achievements, Contact, ProjectSheet } from './ui/Sections'
 import { attachPointer, pointer, telemetry } from './lib/pointer'
 import { sectionLines, greetings } from './content'
-import { useIsPhone } from './lib/useIsPhone'
+import { useDevice } from './lib/useDevice'
 
 const MOODS = { Idle: 'calm', Wave: 'pleased', Scared: 'rattled' }
 
 export default function App() {
-  const phone = useIsPhone()
+  const { tier, touch } = useDevice()
+  const phone = tier === 'phone'
   const [bubble, setBubble] = useState(null)
   const bubbleUntil = useRef(0)
   const bubblePrio = useRef(0)
@@ -41,6 +42,12 @@ export default function App() {
   const readout = useRef({})
 
   useEffect(() => attachPointer(), [])
+
+  /* The stylesheet needs to know the tier as well: a phone in landscape is
+     wider than a tablet in portrait, so "has a ghost" is not a width. */
+  useEffect(() => {
+    document.documentElement.dataset.tier = tier
+  }, [tier])
 
   /* Say hi on every load. Wait until the ghost has actually been placed on
      screen (the model loads async), then give him a beat to settle in. */
@@ -133,7 +140,7 @@ export default function App() {
 
   /* one rAF loop for the DOM: card tilt, the speech bubble, the readout */
   useEffect(() => {
-    if (phone) return // no cursor on a phone: no tilt, no floating bubble, no readout
+    if (phone) return // no ghost on a phone: no bubble, no readout, no tilt
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let raf = 0
     let acc = 0
@@ -143,7 +150,9 @@ export default function App() {
       const dt = Math.min(0.05, (now - lastT) / 1000)
       lastT = now
 
-      if (!reduce) {
+      // tilt follows a hovering cursor, so a touch screen has nothing to
+      // follow: it would just leave every card skewed at the last tap
+      if (!reduce && !touch) {
         const tiles = document.querySelectorAll('.tilt')
         for (const el of tiles) {
           const r = el.getBoundingClientRect()
@@ -174,11 +183,17 @@ export default function App() {
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [phone])
+  }, [phone, touch])
 
   return (
     <>
-      <Scene onGhostSay={ghostSay} explaining={!!open} phone={phone} />
+      <Scene
+        onGhostSay={ghostSay}
+        explaining={!!open}
+        light={tier !== 'desktop'}
+        withGhost={!phone}
+        touch={touch}
+      />
       {!phone && <NameSwarm />}
 
       <main className="page">
@@ -197,7 +212,7 @@ export default function App() {
             <div className="row2"><span>doing</span><i ref={(e) => (readout.current.act = e)}>loading</i></div>
             <div className="row2"><span>feeling</span><i ref={(e) => (readout.current.clip = e)}>&mdash;</i></div>
             <div className="row2"><span>patience</span><b><span className="bar"><span ref={(e) => (readout.current.bar = e)} /></span></b></div>
-            <p className="readout__hint">poke him</p>
+            <p className="readout__hint">{touch ? 'tap him' : 'poke him'}</p>
           </aside>
 
           <div ref={bubbleRef} className={`bubble${bubble ? ' on' : ''}${bubble?.hurt ? ' hurt' : ''}`}>

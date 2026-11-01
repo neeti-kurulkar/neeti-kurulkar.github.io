@@ -372,36 +372,48 @@ a { color: inherit; }
 :focus-visible { outline: 2px solid var(--b4); outline-offset: 3px; }
 
 /* ---------- responsive ---------- */
+/* Narrow is narrow, whatever is pointing at it. */
 @media (max-width: 860px) {
   .twoup { grid-template-columns: 1fr; }
   .arch { grid-template-columns: 3rem 1fr; }
   .arch__links { grid-column: 2; }
   .station { padding-block: 60px; }
-
-  /* No cursor here, so nothing tilts and nothing floats. The ghost, the
-     swarm and the readout are not mounted at all on a phone; these rules
-     are the belt to that braces. */
-  .tilt { transform: none !important; }
-  .readout,
-  .bubble { display: none; }
-
-  /* The hero has to carry its own name, since there is no particle swarm
-     drawing it. */
-  .hero { min-height: auto; padding-block: 84px 48px; }
-  .hero__name {
-    font-family: var(--f-display);
-    font-variation-settings: 'wght' 800, 'wdth' 88;
-    font-size: clamp(2.5rem, 1.4rem + 9vw, 4.2rem);
-    line-height: 0.95;
-    letter-spacing: -0.03em;
-    margin-bottom: 20px;
-  }
-  .hero__line { font-size: 1.0625rem; max-width: none; }
-
   .proj { padding: 20px; }
   .pgrid { gap: 12px; }
   .sheet__body { padding: 26px 22px; }
 }
+
+/* ---------- the three tiers ----------
+   App sets data-tier on <html>, because which toys are running is not a
+   question of width: a phone in landscape is wider than a tablet held
+   upright, and only one of the two has room for a ghost. See useDevice.js. */
+
+/* A phone has no ghost and no swarm, so the hero carries its own name and
+   the two floating pieces are not there at all. Neither is mounted; these
+   rules are the belt to that braces. */
+:root[data-tier='phone'] .readout,
+:root[data-tier='phone'] .bubble { display: none; }
+:root[data-tier='phone'] .hero { min-height: auto; padding-block: 84px 48px; }
+:root[data-tier='phone'] .hero__line { font-size: 1.0625rem; max-width: none; }
+.hero__name {
+  font-family: var(--f-display);
+  font-variation-settings: 'wght' 800, 'wdth' 88;
+  font-size: clamp(2.5rem, 1.4rem + 9vw, 4.2rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  margin-bottom: 20px;
+}
+
+/* A tablet keeps the ghost, and the ghost needs somewhere to stand: the
+   column gives up width on both sides so that there are real gutters for
+   him, instead of him drifting about behind the cards. Ghost.jsx measures
+   the column itself, so this number lives only here. */
+:root[data-tier='tablet'] .page { padding-inline: 104px; }
+:root[data-tier='tablet'] .station { padding-block: 72px; }
+
+/* Nothing hovers on a touch screen, so nothing tilts toward it. */
+:root[data-tier='phone'] .tilt,
+:root[data-tier='tablet'] .tilt { transform: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

@@ -9,7 +9,8 @@ import { pokeLines } from '../content'
 
    He hovers in one of the gutters beside the content column, drifting slowly
    up and down. Every half minute or so he floats across to the other side,
-   behind the cards. He does not chase the cursor. You can still poke him. */
+   behind the cards. He does not chase the cursor. You can still poke him:
+   with a fast swat of the mouse, or, on a touch screen, by tapping him. */
 
 const GLAD = ['boo', 'hi!', '♪', 'hehe']
 const EXPLAIN = ['this one’s good', 'read this bit', 'she likes this one', 'ooh, this one']
@@ -19,13 +20,23 @@ const CROSS_SPEED = 1.3 // when he drifts over to the other side
 const ESCAPE_SPEED = 2.6 // rising back out from behind the readout box
 const FLEE_SPEED = 5 // when he has been poked too hard: he bolts
 const CROSS_EVERY = 30 // seconds, roughly, between crossings
+const DEPTH = 0.4 // how far in front of the background plane he floats
 
-export default function Ghost({ onSay, explaining }) {
+export default function Ghost({ onSay, explaining, touch }) {
   const url = `${import.meta.env.BASE_URL}models/ghost.glb`
   const { scene, animations } = useGLTF(url)
   const group = useRef()
   const { actions } = useAnimations(animations, group)
-  const { viewport, size } = useThree()
+  const { viewport, size, camera } = useThree()
+
+  /* He floats a little in front of the z = 0 plane, so a world unit at his
+     depth covers slightly less of the screen than one at the origin, and
+     anything measured off `viewport` lands him a few per cent too far out.
+     Harmless in a wide desktop gutter; on a tablet it put him half off the
+     edge. Everything below is therefore done in his own plane. */
+  const zf = (camera.position.z - DEPTH) / camera.position.z
+  const vw = viewport.width * zf
+  const vh = viewport.height * zf
   const [clip, setClip] = useState('Idle')
 
   /* Use the loaded scene directly rather than cloning it. scene.clone() does
@@ -54,7 +65,7 @@ export default function Ghost({ onSay, explaining }) {
   const st = useRef({
     x: 0, y: 0, vx: 0, vy: 0, side: -1, yT: 0, yTimer: 0, crossT: 30,
     stress: 0, hitT: 0, bubble: 0, act: 'hovering', seeded: false,
-    hideHold: 0, fleeing: false, hidDone: false,
+    hideHold: 0, fleeing: false, hidDone: false, tapSeen: 0,
   })
 
   useEffect(() => {
@@ -71,18 +82,23 @@ export default function Ghost({ onSay, explaining }) {
      gutter and the middle of the right one. On a narrow screen there are no
      gutters, so he keeps to the two bottom corners instead. */
   const lane = useMemo(() => {
-    const px2w = viewport.width / size.width
-    const contentPx = Math.min(1020, size.width - 36)
-    const gutterPx = (size.width - contentPx) / 2
-    const sides = gutterPx >= 110
-    const halfW = viewport.width / 2
-    const halfH = viewport.height / 2
+    const px2w = vw / size.width
+    /* Measure the column rather than guessing it from the window width: the
+       tablet layout gives up width on purpose so that he has a gutter to
+       stand in, and only the DOM knows that. He is smaller there, so a
+       thinner gutter is still a gutter. */
+    const r = document.querySelector('section.station')?.getBoundingClientRect()
+    const contentPx = r && r.width > 0 ? r.width : Math.min(1020, size.width - 36)
+    const gutterPx = Math.max(0, (size.width - contentPx) / 2)
+    const sides = gutterPx >= (touch ? 78 : 110)
+    const halfW = vw / 2
+    const halfH = vh / 2
     const leftX = sides ? -halfW + (gutterPx * px2w) / 2 : -halfW + 0.85
     const rightX = sides ? halfW - (gutterPx * px2w) / 2 : halfW - 0.85
     const bottomY = -halfH + 0.9
     const topY = sides ? halfH - 1.9 : bottomY + 0.4
     return { leftX, rightX, bottomY, topY, sides, ok: rightX > leftX }
-  }, [viewport.width, viewport.height, size.width])
+  }, [vw, vh, size.width, touch])
 
   /* The readout box is DOM painted over the canvas, so parking him there
      really does hide him. We want that on purpose when he sulks, and never
@@ -92,15 +108,15 @@ export default function Ghost({ onSay, explaining }) {
     if (!el) return null
     const r = el.getBoundingClientRect()
     if (r.width === 0 || r.height === 0) return null
-    const toX = (px) => (px / size.width * 2 - 1) * (viewport.width / 2)
-    const toY = (py) => -(py / size.height * 2 - 1) * (viewport.height / 2)
+    const toX = (px) => (px / size.width * 2 - 1) * (vw / 2)
+    const toY = (py) => -(py / size.height * 2 - 1) * (vh / 2)
     return {
       cx: toX(r.left + r.width / 2),
       cy: toY(r.top + r.height / 2),
       left: toX(r.left),
       top: toY(r.top),
     }
-  }, [size.width, size.height, viewport.width, viewport.height])
+  }, [size.width, size.height, vw, vh])
 
   const grey = useMemo(() => new THREE.Color('#5c6672'), [])
   const screenV = useMemo(() => new THREE.Vector3(), [])
@@ -132,8 +148,8 @@ export default function Ghost({ onSay, explaining }) {
       side > 0 ? Math.min(lane.topY, Math.max(lane.bottomY, clearY)) : lane.bottomY
     const homeX = (side) => (side > 0 ? lane.rightX : lane.leftX)
 
-    const cwx = (pointer.nx * viewport.width) / 2
-    const cwy = (pointer.ny * viewport.height) / 2
+    const cwx = (pointer.nx * vw) / 2
+    const cwy = (pointer.ny * vh) / 2
 
     let tx
     let ty
@@ -248,7 +264,7 @@ export default function Ghost({ onSay, explaining }) {
 
     const tmp = s
     const bob = Math.sin(state.clock.elapsedTime * 0.9) * 0.08
-    g.position.set(tmp.x, tmp.y + bob, 0.4)
+    g.position.set(tmp.x, tmp.y + bob, DEPTH)
 
     /* Poking. This has to be a deliberate swat, not something that fires
        because he happened to wander past a cursor that was drifting. So it
@@ -257,14 +273,26 @@ export default function Ghost({ onSay, explaining }) {
     s.cool = Math.max(0, (s.cool || 0) - d)
     const POKE_SPEED = 11
     const unreachable = s.fleeing
-    if (!explaining && !unreachable && pd < 0.95 && pointer.inside && pointer.speed > POKE_SPEED && s.cool <= 0) {
+    const poke = (force) => {
       s.cool = 0.55
-      s.stress = Math.min(1.8, s.stress + 0.56 + Math.min(0.6, pointer.speed / 70))
+      s.stress = Math.min(1.8, s.stress + 0.56 + Math.min(0.6, force / 70))
       s.hitT = 1.2
       if (s.stress > 0.6) { s.fleeing = true; s.hidDone = false }
       // a poke always gets a reaction, even over a hello he was mid-way through
       s.bubble = 1.5
       onSay?.({ text: pokeLines[(Math.random() * pokeLines.length) | 0], hurt: true })
+    }
+    const pokeable = () => !explaining && !unreachable && s.cool <= 0
+    if (pokeable() && pd < 0.95 && pointer.inside && pointer.speed > POKE_SPEED) poke(pointer.speed)
+
+    /* On a touch screen there is no cursor to swat him with, so a tap on him
+       is the poke. Only a tap: a drag is someone scrolling past him, and a
+       long press is someone resting a thumb. */
+    if (pointer.tap !== s.tapSeen) {
+      s.tapSeen = pointer.tap
+      const twx = (pointer.tapX / size.width * 2 - 1) * (vw / 2)
+      const twy = -(pointer.tapY / size.height * 2 - 1) * (vh / 2)
+      if (pokeable() && Math.hypot(twx - tmp.x, twy - tmp.y) < 1.3) poke(34)
     }
     if (!explaining) s.explained = false
     if (!s.fleeing) s.stress = Math.max(0, s.stress - d * 0.2)
@@ -319,7 +347,7 @@ export default function Ghost({ onSay, explaining }) {
   })
 
   return (
-    <group ref={group} scale={1.35}>
+    <group ref={group} scale={touch ? 0.95 : 1.35}>
       <primitive object={model} />
     </group>
   )

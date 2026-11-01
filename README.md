@@ -33,12 +33,23 @@ with their real figures on the face of each card, skills, achievements,
 contact. Every project opens as a deep link (`/#project/injection`), so the URL
 is shareable and the back button works without the 3D scene ever restarting.
 
-## On a phone
+## On a phone, and on a tablet
 
-The ghost, the swarm, the readout and the card tilt all assume a cursor and a
-desktop GPU, so none of them are mounted on a small or touch screen. What
-remains is the starfield and the cards. The `h1` stops being screen-reader-only
-and is set properly, since nothing is drawing the name any more.
+There are three tiers, decided in `src/lib/useDevice.js` and written onto
+`<html data-tier>` so the stylesheet can see them too.
+
+| | |
+|---|---|
+| **desktop** | everything, including the card tilt |
+| **tablet** | the ghost and the swarm are both there and are driven by your finger. You poke him by tapping him. Nothing tilts, because nothing hovers. The column gives up width on both sides so that he has real gutters to stand in |
+| **phone** | starfield and cards. He has nowhere to stand, so he is not mounted at all, and the `h1` stops being screen-reader-only and is set properly, since nothing is drawing the name any more |
+
+Which tier you are is not a width: a phone held sideways is wider than a
+tablet held upright, so the tablet test asks for height as well. Touch is
+read from the touch events rather than the pointer ones, because a drag that
+scrolls the page fires `pointercancel` and then stops reporting, and the
+swarm wants the whole gesture. Nothing calls `preventDefault`, so the page
+scrolls exactly as it would otherwise.
 
 ## Stack
 
@@ -67,7 +78,7 @@ publishes to GitHub Pages. Pages → Source must be set to **GitHub Actions**.
 | The ghost: lane, moods, lines | `src/three/Ghost.jsx` |
 | The name swarm | `src/ui/NameSwarm.jsx` |
 | What he says per section | `sectionLines` in `src/content.js` |
-| What counts as a phone | `src/lib/useIsPhone.js` |
+| Who gets the ghost, the swarm, the tilt | `src/lib/useDevice.js` |
 
 ## Two things that will bite you
 
@@ -80,6 +91,11 @@ scene directly. For a second ghost, use `SkeletonUtils.clone()`.
 `viewport`. If the camera moves or rotates, those coordinates stop matching the
 screen and he ends up somewhere else entirely. Parallax belongs on the
 background group, not the camera.
+
+`viewport` also describes the plane at z = 0, and he floats at z = 0.4, so
+every pixel-to-world conversion in `Ghost.jsx` is scaled into his own plane
+first. Skip that and he lands about three per cent further out than you asked
+for — invisible in a wide desktop gutter, half off the edge on a tablet.
 
 ## Fonts
 
